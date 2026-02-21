@@ -56,7 +56,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-1">
               <LanguageToggle />
               <ThemeToggle />
-              <a href="/api/login">
+              <a href="/auth">
                 <Button data-testid="button-login">
                   <LogIn className="h-4 w-4" />
                   <span className="ms-1.5">{t("nav.login")}</span>
@@ -119,7 +119,7 @@ export default function LandingPage() {
                     </p>
                   </div>
 
-                  <a href="/api/login" className="block">
+                  <a href="/auth" className="block">
                     <Button size="lg" className="w-full text-base h-12" data-testid="button-register">
                       <LogIn className="h-5 w-5" />
                       <span className="ms-2">
@@ -131,7 +131,7 @@ export default function LandingPage() {
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                      <span>{lang === "ar" ? "سجّل ببريدك الإلكتروني أو حساب Google" : "Sign up with email or Google"}</span>
+                      <span>{lang === "ar" ? "سجّل ببريدك الإلكتروني" : "Sign up with your email"}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
@@ -317,7 +317,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="text-center mt-12">
-            <a href="/api/login">
+            <a href="/auth">
               <Button size="lg" data-testid="button-cta-bottom">
                 <LogIn className="h-5 w-5" />
                 <span className="ms-2">

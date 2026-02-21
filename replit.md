@@ -6,7 +6,7 @@ A bilingual (Arabic/English) web platform for documenting non-academic skills an
 ## Architecture
 - **Frontend**: React + Vite + Tailwind CSS + Shadcn UI + wouter routing
 - **Backend**: Express.js + Drizzle ORM + PostgreSQL
-- **Auth**: Replit Auth (OpenID Connect) - handles login/logout/sessions
+- **Auth**: Custom email/password auth with bcryptjs hashing + express-session (PostgreSQL-backed sessions)
 - **i18n**: Custom React context (client/src/lib/i18n.tsx) with AR/EN translations
 - **File Uploads**: Multer for certificates and project files (10MB limit, PDF/images/docs)
 
@@ -15,7 +15,7 @@ A bilingual (Arabic/English) web platform for documenting non-academic skills an
 - `client/src/components/` - Reusable components (sidebar, language toggle, theme provider)
 - `client/src/lib/` - Utilities (queryClient, i18n, auth-utils)
 - `server/` - Express backend (routes, storage, db, seed)
-- `server/replit_integrations/auth/` - Replit Auth integration
+- `server/replit_integrations/auth/` - Custom auth (register/login/logout/session)
 - `shared/` - Schema types shared between frontend and backend
 - `uploads/` - Uploaded certificate and project files
 
@@ -40,6 +40,9 @@ A bilingual (Arabic/English) web platform for documenting non-academic skills an
 
 ## API Routes
 ### Auth
+- `POST /api/auth/register` - Register new user (email, password, firstName, lastName)
+- `POST /api/auth/login` - Login (email, password)
+- `POST /api/auth/logout` - Logout
 - `GET /api/auth/user` - Current authenticated user
 
 ### Profile

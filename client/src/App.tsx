@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import LandingPage from "@/pages/landing";
+import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard";
 import ActivitiesPage from "@/pages/activities";
 import AddActivityPage from "@/pages/add-activity";
@@ -93,6 +94,7 @@ function AppContent() {
   if (!user) {
     return (
       <Switch>
+        <Route path="/auth" component={AuthPage} />
         <Route path="/" component={LandingPage} />
         <Route component={LandingPage} />
       </Switch>
