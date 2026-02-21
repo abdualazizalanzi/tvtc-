@@ -17,7 +17,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Users, UserPlus, Shield, GraduationCap, BookOpen, Loader2, Award } from "lucide-react";
+import { Users, UserPlus, Shield, GraduationCap, BookOpen, Loader2, Award, KeyRound } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -74,6 +74,19 @@ export default function AdminUsersPage() {
           : (lang === "ar" ? "فشل إنشاء الحساب" : "Failed to create account"),
         variant: "destructive",
       });
+    },
+  });
+
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
+      const res = await apiRequest("POST", `/api/admin/users/${userId}/reset-password`, { newPassword });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: lang === "ar" ? "تم تغيير كلمة المرور بنجاح" : "Password reset successfully" });
+    },
+    onError: () => {
+      toast({ title: lang === "ar" ? "فشل تغيير كلمة المرور" : "Failed to reset password", variant: "destructive" });
     },
   });
 
@@ -310,7 +323,28 @@ export default function AdminUsersPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            data-testid={`button-reset-password-${u.id}`}
+                            onClick={() => {
+                              const newPassword = prompt(lang === "ar" ? "أدخل كلمة المرور الجديدة (6 أحرف على الأقل):" : "Enter new password (min 6 chars):");
+                              if (newPassword && newPassword.length >= 6) {
+                                resetPasswordMutation.mutate({ userId: u.id, newPassword });
+                              } else if (newPassword) {
+                                toast({
+                                  title: lang === "ar" ? "خطأ" : "Error",
+                                  description: lang === "ar" ? "كلمة المرور يجب أن تكون 6 أحرف على الأقل" : "Password must be at least 6 characters",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          >
+                            <KeyRound className="h-3.5 w-3.5 me-1" />
+                            {lang === "ar" ? "تغيير كلمة المرور" : "Reset Password"}
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"

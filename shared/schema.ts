@@ -153,6 +153,7 @@ export const certificates = pgTable("certificates", {
   type: varchar("type").notNull().default("course_completion"),
   titleAr: text("title_ar").notNull(),
   titleEn: text("title_en"),
+  certificateNumber: integer("certificate_number"),
   issuedAt: timestamp("issued_at").defaultNow(),
   verificationCode: varchar("verification_code").default(sql`gen_random_uuid()`),
 });

@@ -660,6 +660,61 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.post("/api/admin/users/:id/reset-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const schema = z.object({ newPassword: z.string().min(6) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" });
+
+      const bcrypt = await import("bcryptjs");
+      const hashedPassword = await bcrypt.hash(parsed.data.newPassword, 10);
+      const { authStorage } = await import("./replit_integrations/auth/storage");
+      const targetUser = await authStorage.getUser(req.params.id);
+      if (!targetUser) return res.status(404).json({ message: "User not found" });
+
+      await authStorage.upsertUser({ ...targetUser, password: hashedPassword });
+
+      storage.createAuditLog({
+        actorUserId: userId,
+        action: "password_reset",
+        entityType: "user",
+        entityId: req.params.id,
+        details: { targetEmail: targetUser.email },
+      }).catch(() => {});
+
+      res.json({ message: "تم تغيير كلمة المرور بنجاح / Password reset successfully" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.delete("/api/lessons/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isTrainer(userId)) && !(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteLesson(req.params.id);
+      res.json({ message: "Lesson deleted" });
+    } catch (error) {
+      console.error("Delete lesson error:", error);
+      res.status(500).json({ message: "Failed to delete lesson" });
+    }
+  });
+
+  app.delete("/api/courses/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isTrainer(userId)) && !(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      await storage.deleteCourse(req.params.id);
+      res.json({ message: "Course deleted" });
+    } catch (error) {
+      console.error("Delete course error:", error);
+      res.status(500).json({ message: "Failed to delete course" });
+    }
+  });
+
   const openai = new OpenAI({
     apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
     baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,

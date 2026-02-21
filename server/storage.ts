@@ -81,6 +81,8 @@ export interface IStorage {
   getCertificatesByUser(userId: string): Promise<Certificate[]>;
   getCertificateByVerification(code: string): Promise<(Certificate & { userName?: string; courseName?: string }) | undefined>;
   createCertificate(cert: InsertCertificate): Promise<Certificate>;
+  getNextCertificateNumber(): Promise<number>;
+  deleteCourse(id: string): Promise<void>;
 
   getLessonProgress(userId: string, lessonId: string): Promise<LessonProgress | undefined>;
   markLessonComplete(userId: string, lessonId: string): Promise<LessonProgress>;
@@ -291,9 +293,32 @@ class DatabaseStorage implements IStorage {
     };
   }
 
+  async getNextCertificateNumber(): Promise<number> {
+    const result = await db.select({ maxNum: sql<number>`COALESCE(MAX(${certificates.certificateNumber}), 0)` }).from(certificates);
+    return (result[0]?.maxNum || 0) + 1;
+  }
+
   async createCertificate(cert: InsertCertificate): Promise<Certificate> {
-    const [result] = await db.insert(certificates).values(cert).returning();
+    const nextNumber = await this.getNextCertificateNumber();
+    const [result] = await db.insert(certificates).values({ ...cert, certificateNumber: nextNumber }).returning();
     return result;
+  }
+
+  async deleteCourse(id: string): Promise<void> {
+    await db.delete(lessonProgress).where(
+      sql`${lessonProgress.lessonId} IN (SELECT id FROM course_lessons WHERE course_id = ${id})`
+    );
+    await db.delete(courseLessons).where(eq(courseLessons.courseId, id));
+    await db.delete(quizQuestions).where(
+      sql`${quizQuestions.quizId} IN (SELECT id FROM course_quizzes WHERE course_id = ${id})`
+    );
+    await db.delete(courseQuizzes).where(eq(courseQuizzes.courseId, id));
+    await db.delete(quizAttempts).where(
+      sql`${quizAttempts.quizId} IN (SELECT id FROM course_quizzes WHERE course_id = ${id})`
+    );
+    await db.delete(projectSubmissions).where(eq(projectSubmissions.courseId, id));
+    await db.delete(courseEnrollments).where(eq(courseEnrollments.courseId, id));
+    await db.delete(courses).where(eq(courses.id, id));
   }
 
   async getLessonProgress(userId: string, lessonId: string): Promise<LessonProgress | undefined> {

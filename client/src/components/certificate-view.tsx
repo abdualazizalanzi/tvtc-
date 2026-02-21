@@ -76,6 +76,11 @@ export default function CertificateView({ certificateId }: CertificateViewProps)
             <h1 className="text-4xl sm:text-6xl font-bold font-serif text-primary tracking-tight">
               {lang === "ar" ? "شهادة إنجاز" : "Certificate of Achievement"}
             </h1>
+            {(certificate as any).certificateNumber && (
+              <p className="text-sm font-mono text-muted-foreground" data-testid="text-certificate-number">
+                {lang === "ar" ? "رقم الشهادة:" : "Certificate No:"} {String((certificate as any).certificateNumber).padStart(6, "0")}
+              </p>
+            )}
             <div className="h-1 w-40 bg-primary/30 mx-auto rounded-full" />
           </div>
 

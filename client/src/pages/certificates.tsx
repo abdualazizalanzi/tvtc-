@@ -71,6 +71,12 @@ export default function CertificatesPage() {
                 </div>
 
                 <div className="text-sm text-muted-foreground space-y-1">
+                  {(cert as any).certificateNumber && (
+                    <p data-testid={`text-cert-number-${cert.id}`}>
+                      {lang === "ar" ? "رقم الشهادة:" : "Certificate No:"}{" "}
+                      <span className="font-mono text-foreground">{String((cert as any).certificateNumber).padStart(6, "0")}</span>
+                    </p>
+                  )}
                   <p data-testid={`text-cert-issued-${cert.id}`}>
                     {t("certificate.issuedAt")}:{" "}
                     {cert.issuedAt

@@ -35,6 +35,7 @@ import {
   GraduationCap,
   FileText,
   HelpCircle,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import type {
@@ -175,6 +176,39 @@ export default function TrainerDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse?.id, "lessons"] });
       setLessonDialogOpen(false);
       setLessonForm({ titleAr: "", titleEn: "", videoUrl: "", contentAr: "", contentEn: "", orderIndex: 0, durationMinutes: 0 });
+    },
+    onError: (error: Error) => {
+      if (!handleAuthError(error)) {
+        toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+      }
+    },
+  });
+
+  const deleteLessonMutation = useMutation({
+    mutationFn: async (lessonId: string) => {
+      const res = await apiRequest("DELETE", `/api/lessons/${lessonId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: lang === "ar" ? "تم حذف الدرس" : "Lesson deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses", selectedCourse?.id, "lessons"] });
+    },
+    onError: (error: Error) => {
+      if (!handleAuthError(error)) {
+        toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+      }
+    },
+  });
+
+  const deleteCourseMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      const res = await apiRequest("DELETE", `/api/courses/${courseId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: lang === "ar" ? "تم حذف الدورة" : "Course deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/courses/all"] });
+      setSelectedCourse(null);
     },
     onError: (error: Error) => {
       if (!handleAuthError(error)) {
@@ -348,6 +382,19 @@ export default function TrainerDashboard() {
                               </Badge>
                             ) : null}
                           </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive h-8 w-8 p-0 shrink-0"
+                            data-testid={`button-delete-lesson-${lesson.id}`}
+                            onClick={() => {
+                              if (confirm(lang === "ar" ? "هل أنت متأكد من حذف هذا الدرس؟" : "Are you sure you want to delete this lesson?")) {
+                                deleteLessonMutation.mutate(lesson.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -839,12 +886,28 @@ export default function TrainerDashboard() {
                     {course.isPublished ? t("common.publish") : t("common.unpublish")}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                  <Badge variant="secondary" className="text-xs">{course.category}</Badge>
-                  <span className="flex items-center gap-1">
-                    <BookOpen className="h-3 w-3" />
-                    {course.duration} {t("courses.hours")}
-                  </span>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                    <Badge variant="secondary" className="text-xs">{course.category}</Badge>
+                    <span className="flex items-center gap-1">
+                      <BookOpen className="h-3 w-3" />
+                      {course.duration} {t("courses.hours")}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive h-7 w-7 p-0 shrink-0"
+                    data-testid={`button-delete-course-${course.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(lang === "ar" ? "هل أنت متأكد من حذف هذه الدورة وجميع محتوياتها؟" : "Are you sure you want to delete this course and all its content?")) {
+                        deleteCourseMutation.mutate(course.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
