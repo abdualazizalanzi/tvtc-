@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider, useI18n } from "@/lib/i18n";
@@ -22,8 +22,10 @@ import TrainerDashboardPage from "@/pages/trainer-dashboard";
 import SupervisorDashboardPage from "@/pages/supervisor-dashboard";
 import ProfilePage from "@/pages/profile";
 import CertificatesPage from "@/pages/certificates";
+import CompleteProfilePage from "@/pages/complete-profile";
 import NotFound from "@/pages/not-found";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { StudentProfile } from "@shared/schema";
 
 function AuthenticatedLayout() {
   const { isRtl } = useI18n();
@@ -72,6 +74,11 @@ function AuthenticatedLayout() {
 function AppContent() {
   const { user, isLoading } = useAuth();
 
+  const { data: profile, isLoading: profileLoading } = useQuery<StudentProfile>({
+    queryKey: ["/api/profile"],
+    enabled: !!user,
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -90,6 +97,21 @@ function AppContent() {
         <Route component={LandingPage} />
       </Switch>
     );
+  }
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="space-y-4 text-center">
+          <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+          <Skeleton className="h-4 w-32 mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile || !profile.studentId || !profile.major) {
+    return <CompleteProfilePage />;
   }
 
   return <AuthenticatedLayout />;

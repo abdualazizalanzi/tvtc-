@@ -17,6 +17,10 @@ import {
   CheckCircle2,
   ArrowLeft,
   ArrowRight,
+  LogIn,
+  BookOpen,
+  Brain,
+  FileText,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -53,7 +57,10 @@ export default function LandingPage() {
               <LanguageToggle />
               <ThemeToggle />
               <a href="/api/login">
-                <Button data-testid="button-login">{t("nav.login")}</Button>
+                <Button data-testid="button-login">
+                  <LogIn className="h-4 w-4" />
+                  <span className="ms-1.5">{t("nav.login")}</span>
+                </Button>
               </a>
             </div>
           </div>
@@ -71,7 +78,7 @@ export default function LandingPage() {
               <Badge variant="secondary" className="text-sm px-4 py-1.5">
                 <Award className="h-3.5 w-3.5" />
                 <span className="ms-1.5">
-                  {lang === "ar" ? "منصة معتمدة من الجامعة" : "University Certified Platform"}
+                  {lang === "ar" ? "الكلية التقنية" : "Technical College"}
                 </span>
               </Badge>
               <h1
@@ -83,20 +90,6 @@ export default function LandingPage() {
               <p className="text-lg sm:text-xl text-muted-foreground max-w-lg leading-relaxed">
                 {t("landing.hero.subtitle")}
               </p>
-              <div className="flex flex-wrap items-center gap-3">
-                <a href="/api/login">
-                  <Button size="lg" data-testid="button-cta">
-                    {t("landing.hero.cta")}
-                    <Arrow className="h-4 w-4 ms-2" />
-                  </Button>
-                </a>
-                <a href="#about">
-                  <Button variant="outline" size="lg" data-testid="button-learn-more">
-                    {t("landing.hero.learnMore")}
-                    <ChevronDown className="h-4 w-4 ms-2" />
-                  </Button>
-                </a>
-              </div>
               <div className="flex flex-wrap items-center gap-4 pt-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -109,52 +102,48 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="hidden lg:flex justify-center">
-              <div className="relative">
-                <div className="w-80 h-96 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent border border-primary/10 flex items-center justify-center">
-                  <div className="space-y-6 p-8">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                        <GraduationCap className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <div className="h-3 w-28 bg-foreground/10 rounded" />
-                        <div className="h-2 w-20 bg-foreground/5 rounded mt-2" />
-                      </div>
+            <div className="flex justify-center">
+              <Card className="w-full max-w-md border-2">
+                <CardContent className="p-8 space-y-6">
+                  <div className="text-center space-y-2">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <GraduationCap className="h-8 w-8 text-primary" />
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        </div>
-                        <div className="h-2.5 w-full bg-foreground/5 rounded" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded bg-green-500/20 flex items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        </div>
-                        <div className="h-2.5 w-3/4 bg-foreground/5 rounded" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded bg-yellow-500/20 flex items-center justify-center">
-                          <TrendingUp className="h-4 w-4 text-yellow-500" />
-                        </div>
-                        <div className="h-2.5 w-5/6 bg-foreground/5 rounded" />
-                      </div>
+                    <h2 className="text-2xl font-bold font-serif">
+                      {lang === "ar" ? "سجّل الآن" : "Register Now"}
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      {lang === "ar"
+                        ? "ابدأ بتوثيق مهاراتك وأنشطتك غير الأكاديمية"
+                        : "Start documenting your non-academic skills and activities"}
+                    </p>
+                  </div>
+
+                  <a href="/api/login" className="block">
+                    <Button size="lg" className="w-full text-base h-12" data-testid="button-register">
+                      <LogIn className="h-5 w-5" />
+                      <span className="ms-2">
+                        {lang === "ar" ? "تسجيل الدخول / إنشاء حساب" : "Login / Create Account"}
+                      </span>
+                    </Button>
+                  </a>
+
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      <span>{lang === "ar" ? "سجّل ببريدك الإلكتروني أو حساب Google" : "Sign up with email or Google"}</span>
                     </div>
-                    <div className="pt-2">
-                      <div className="h-3 w-full bg-primary/10 rounded-full">
-                        <div className="h-3 w-2/3 bg-primary/40 rounded-full" />
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2 text-center">
-                        {lang === "ar" ? "67% مكتمل" : "67% Complete"}
-                      </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      <span>{lang === "ar" ? "أكمل بياناتك: رقم المتدرب، التخصص، الجوال" : "Complete your info: Student ID, Major, Phone"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      <span>{lang === "ar" ? "ابدأ بإضافة الأنشطة والتسجيل في الدورات" : "Start adding activities and enrolling in courses"}</span>
                     </div>
                   </div>
-                </div>
-                <div className="absolute -top-4 -end-4 w-24 h-24 rounded-xl bg-primary/5 border border-primary/10 -z-10" />
-                <div className="absolute -bottom-4 -start-4 w-32 h-32 rounded-xl bg-primary/5 border border-primary/10 -z-10" />
-              </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -167,7 +156,7 @@ export default function LandingPage() {
               {t("landing.features.title")}
             </h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
                 icon: FileCheck,
@@ -189,6 +178,27 @@ export default function LandingPage() {
                 desc: t("landing.features.growth.desc"),
                 gradient: "from-purple-500/10 to-purple-600/5",
                 iconColor: "text-purple-500",
+              },
+              {
+                icon: BookOpen,
+                title: t("landing.features.courses.title"),
+                desc: t("landing.features.courses.desc"),
+                gradient: "from-orange-500/10 to-orange-600/5",
+                iconColor: "text-orange-500",
+              },
+              {
+                icon: Brain,
+                title: t("landing.features.ai.title"),
+                desc: t("landing.features.ai.desc"),
+                gradient: "from-pink-500/10 to-pink-600/5",
+                iconColor: "text-pink-500",
+              },
+              {
+                icon: FileText,
+                title: t("landing.features.pdf.title"),
+                desc: t("landing.features.pdf.desc"),
+                gradient: "from-cyan-500/10 to-cyan-600/5",
+                iconColor: "text-cyan-500",
               },
             ].map((feature) => (
               <Card key={feature.title} className="group hover-elevate">
@@ -309,7 +319,10 @@ export default function LandingPage() {
           <div className="text-center mt-12">
             <a href="/api/login">
               <Button size="lg" data-testid="button-cta-bottom">
-                {t("landing.hero.cta")}
+                <LogIn className="h-5 w-5" />
+                <span className="ms-2">
+                  {lang === "ar" ? "سجّل الآن وابدأ" : "Register Now & Start"}
+                </span>
                 <Arrow className="h-4 w-4 ms-2" />
               </Button>
             </a>
@@ -326,8 +339,8 @@ export default function LandingPage() {
             </div>
             <p className="text-sm text-muted-foreground">
               {lang === "ar"
-                ? `\u00A9 ${new Date().getFullYear()} السجل المهاري. جميع الحقوق محفوظة.`
-                : `\u00A9 ${new Date().getFullYear()} Skill Record. All rights reserved.`}
+                ? `\u00A9 ${new Date().getFullYear()} السجل المهاري - الكلية التقنية. جميع الحقوق محفوظة.`
+                : `\u00A9 ${new Date().getFullYear()} Skill Record - Technical College. All rights reserved.`}
             </p>
           </div>
         </div>

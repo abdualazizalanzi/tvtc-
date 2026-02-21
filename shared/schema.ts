@@ -29,7 +29,7 @@ export const activityStatusEnum = pgEnum("activity_status", [
 
 export const studentProfiles = pgTable("student_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
   studentId: varchar("student_id"),
   trainingId: varchar("training_id"),
   phone: varchar("phone"),

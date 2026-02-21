@@ -70,6 +70,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const profile = await storage.upsertStudentProfile({ userId, ...parsed.data });
       res.json(profile);
     } catch (error) {
+      console.error("Profile update error:", error);
       res.status(500).json({ message: "Failed to update profile" });
     }
   });
