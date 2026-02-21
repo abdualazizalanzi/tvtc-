@@ -2,10 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { authStorage } from "./replit_integrations/auth/storage";
 import { z } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import OpenAI from "openai";
+import { ACTIVITY_MIN_HOURS } from "@shared/schema";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -610,6 +613,139 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (error) {
       console.error("Admin create user error:", error);
       res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  const openai = new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+
+  app.post("/api/ai/chat", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const aiSchema = z.object({
+        message: z.string().min(1),
+        language: z.enum(["ar", "en"]).optional().default("ar"),
+      });
+      const parsed = aiSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+      const { message, language } = parsed.data;
+      const lang = language;
+
+      const [profile, activities, enrollmentsData, coursesData, certificatesData] = await Promise.all([
+        storage.getStudentProfile(userId),
+        storage.getActivitiesByUser(userId),
+        storage.getEnrollmentsByUser(userId),
+        storage.getCourses(),
+        storage.getCertificatesByUser(userId),
+      ]);
+
+      const user = await authStorage.getUser(userId);
+      const approved = activities.filter((a: any) => a.status === "approved");
+      const hoursByType: Record<string, number> = {};
+      approved.forEach((a: any) => {
+        hoursByType[a.type] = (hoursByType[a.type] || 0) + a.hours;
+      });
+
+      const neededTypes = Object.entries(ACTIVITY_MIN_HOURS)
+        .map(([type, required]) => ({
+          type,
+          required,
+          current: hoursByType[type] || 0,
+          remaining: required - (hoursByType[type] || 0),
+        }))
+        .filter((item) => item.remaining > 0);
+
+      const enrolledCourseIds = new Set(enrollmentsData.map((e: any) => e.courseId));
+      const completedEnrollments = enrollmentsData.filter((e: any) => e.isCompleted);
+      const availableCourses = coursesData.filter((c: any) => c.isPublished && !enrolledCourseIds.has(c.id));
+
+      const systemPrompt = lang === "ar" 
+        ? `أنت مساعد ذكي متخصص في نظام السجل المهاري للكلية التقنية. تساعد الطلاب في تتبع أنشطتهم وساعاتهم وتقدمهم. أجب دائماً باللغة العربية.
+
+معلومات الطالب:
+- الاسم: ${user?.firstName || ""} ${user?.lastName || ""}
+- الرقم التدريبي: ${profile?.studentId || "غير محدد"}
+- التخصص: ${profile?.major || "غير محدد"}
+- الأنشطة المعتمدة: ${approved.length}
+- إجمالي الساعات المعتمدة: ${approved.reduce((s: number, a: any) => s + a.hours, 0)}
+- الدورات المسجلة: ${enrollmentsData.length}
+- الدورات المكتملة: ${completedEnrollments.length}
+- الشهادات: ${certificatesData.length}
+
+الساعات المطلوبة لكل فئة:
+${Object.entries(ACTIVITY_MIN_HOURS).map(([type, req]) => `- ${type}: مطلوب ${req} ساعة، متحقق ${hoursByType[type] || 0} ساعة`).join("\n")}
+
+الفئات التي تحتاج ساعات إضافية:
+${neededTypes.length > 0 ? neededTypes.map(n => `- ${n.type}: يحتاج ${n.remaining} ساعة إضافية`).join("\n") : "لا يوجد - أكمل جميع الفئات!"}
+
+الدورات المتاحة للتسجيل:
+${availableCourses.slice(0, 5).map((c: any) => `- ${c.titleAr} (${c.duration} ساعة)`).join("\n") || "لا توجد دورات متاحة حالياً"}
+
+الأنشطة المعتمدة للطالب:
+${approved.slice(0, 10).map((a: any) => `- ${a.nameAr} (${a.type}, ${a.hours} ساعة، ${a.organization})`).join("\n") || "لا توجد أنشطة معتمدة بعد"}
+
+ساعد الطالب بتقديم نصائح واقتراحات مفيدة لإكمال سجله المهاري. كن ودوداً ومختصراً.`
+        : `You are an intelligent assistant specialized in the Skill Record system for the Technical College. You help students track activities, hours, and progress. Always respond in English.
+
+Student Info:
+- Name: ${user?.firstName || ""} ${user?.lastName || ""}
+- Student ID: ${profile?.studentId || "Not set"}
+- Major: ${profile?.major || "Not set"}
+- Approved activities: ${approved.length}
+- Total approved hours: ${approved.reduce((s: number, a: any) => s + a.hours, 0)}
+- Enrolled courses: ${enrollmentsData.length}
+- Completed courses: ${completedEnrollments.length}
+- Certificates: ${certificatesData.length}
+
+Required hours per category:
+${Object.entries(ACTIVITY_MIN_HOURS).map(([type, req]) => `- ${type}: required ${req}h, achieved ${hoursByType[type] || 0}h`).join("\n")}
+
+Categories needing more hours:
+${neededTypes.length > 0 ? neededTypes.map(n => `- ${n.type}: needs ${n.remaining} more hours`).join("\n") : "None - all categories completed!"}
+
+Available courses for enrollment:
+${availableCourses.slice(0, 5).map((c: any) => `- ${c.titleEn || c.titleAr} (${c.duration} hours)`).join("\n") || "No courses available currently"}
+
+Approved activities:
+${approved.slice(0, 10).map((a: any) => `- ${a.nameEn || a.nameAr} (${a.type}, ${a.hours}h, ${a.organization})`).join("\n") || "No approved activities yet"}
+
+Help the student with useful advice and suggestions to complete their skill record. Be friendly and concise.`;
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const stream = await openai.chat.completions.create({
+        model: "gpt-5-nano",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message },
+        ],
+        stream: true,
+        max_completion_tokens: 8192,
+      });
+
+      let fullResponse = "";
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          fullResponse += content;
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error("AI chat error:", error);
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "AI error" })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({ message: "AI chat failed" });
+      }
     }
   });
 

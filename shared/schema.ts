@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export * from "./models/auth";
+export * from "./models/chat";
 import { users } from "./models/auth";
 
 export const userRoleEnum = pgEnum("user_role", ["student", "trainer", "supervisor"]);

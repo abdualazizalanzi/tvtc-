@@ -80,209 +80,96 @@ export default function AIAssistantPage() {
     ]);
   };
 
-  const simulateDelay = () => new Promise((resolve) => setTimeout(resolve, 800));
-
-  const handleSuggestActivities = async () => {
-    addMessage("user", t("ai.suggestActivities"));
+  const streamAIResponse = async (userMessage: string, type?: ChatMessage["type"]) => {
     setIsAnalyzing(true);
-    await simulateDelay();
+    const msgId = Date.now().toString() + Math.random();
+    setMessages((prev) => [
+      ...prev,
+      { id: msgId, role: "assistant", content: "", type: type || "text" },
+    ]);
 
-    const neededTypes = Object.entries(ACTIVITY_MIN_HOURS)
-      .map(([type, required]) => {
-        const current = hoursByType[type] || 0;
-        const remaining = required - current;
-        return { type, required, current, remaining };
-      })
-      .filter((item) => item.remaining > 0)
-      .sort((a, b) => b.remaining - a.remaining);
-
-    let response = "";
-    if (neededTypes.length === 0) {
-      response = lang === "ar"
-        ? "تهانينا! لقد أكملت جميع الساعات المطلوبة في كل الفئات. سجلك المهاري مكتمل."
-        : "Congratulations! You have completed all required hours in every category. Your skill record is complete.";
-    } else {
-      const header = lang === "ar"
-        ? "بناءً على تحليل سجلك المهاري، تحتاج إلى مزيد من الساعات في الفئات التالية:\n\n"
-        : "Based on your skill record analysis, you need more hours in the following categories:\n\n";
-
-      const items = neededTypes.map((item) => {
-        const typeName = t(`activity.types.${item.type}`);
-        const hoursWord = t("courses.hours");
-        if (lang === "ar") {
-          return `• ${typeName}: تحتاج ${item.remaining} ${hoursWord} إضافية (لديك ${item.current} من أصل ${item.required})`;
-        }
-        return `• ${typeName}: Need ${item.remaining} more ${hoursWord} (${item.current}/${item.required})`;
+    try {
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: userMessage, language: lang }),
       });
 
-      const suggestions = lang === "ar"
-        ? "\n\nاقتراحات:\n" + neededTypes.slice(0, 3).map((item) => {
-            const typeName = t(`activity.types.${item.type}`);
-            return `💡 ابحث عن فرص في مجال "${typeName}" لإكمال ساعاتك المتبقية`;
-          }).join("\n")
-        : "\n\nSuggestions:\n" + neededTypes.slice(0, 3).map((item) => {
-            const typeName = t(`activity.types.${item.type}`);
-            return `💡 Look for opportunities in "${typeName}" to complete your remaining hours`;
-          }).join("\n");
+      if (!response.ok) throw new Error("AI request failed");
 
-      response = header + items.join("\n") + suggestions;
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.content) {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === msgId ? { ...m, content: m.content + event.content } : m
+                )
+              );
+            }
+            if (event.done) break;
+            if (event.error) throw new Error(event.error);
+          } catch (e) {
+            if (!(e instanceof SyntaxError)) throw e;
+          }
+        }
+      }
+    } catch (error) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId
+            ? {
+                ...m,
+                content:
+                  lang === "ar"
+                    ? "عذراً، حدث خطأ أثناء معالجة طلبك. حاول مرة أخرى."
+                    : "Sorry, an error occurred while processing your request. Please try again.",
+              }
+            : m
+        )
+      );
     }
-
-    addMessage("assistant", response, "activities");
     setIsAnalyzing(false);
+  };
+
+  const handleSuggestActivities = async () => {
+    const prompt = lang === "ar"
+      ? "حلل سجلي المهاري واقترح الأنشطة التي أحتاجها لإكمال الساعات المطلوبة في كل فئة. اعطني اقتراحات عملية ومحددة."
+      : "Analyze my skill record and suggest activities I need to complete the required hours in each category. Give me practical and specific suggestions.";
+    addMessage("user", t("ai.suggestActivities"));
+    await streamAIResponse(prompt, "activities");
   };
 
   const handleSuggestCourses = async () => {
+    const prompt = lang === "ar"
+      ? "اقترح لي دورات تدريبية مناسبة بناءً على تخصصي وسجلي المهاري الحالي. ما الدورات المتاحة التي يجب أن أسجل فيها؟"
+      : "Suggest suitable training courses based on my major and current skill record. What available courses should I enroll in?";
     addMessage("user", t("ai.suggestCourses"));
-    setIsAnalyzing(true);
-    await simulateDelay();
-
-    const enrolledCourseIds = new Set(enrollments?.map((e) => e.courseId) || []);
-    const availableCourses = courses?.filter((c) => c.isPublished && !enrolledCourseIds.has(c.id)) || [];
-
-    let response = "";
-    if (availableCourses.length === 0) {
-      response = lang === "ar"
-        ? "أنت مسجّل في جميع الدورات المتاحة حالياً. استمر في إكمال دوراتك الحالية!"
-        : "You're enrolled in all available courses. Keep completing your current ones!";
-    } else {
-      const header = lang === "ar"
-        ? `بناءً على ملفك الشخصي${profile?.major ? ` (تخصص: ${profile.major})` : ""}، إليك الدورات المقترحة:\n\n`
-        : `Based on your profile${profile?.major ? ` (Major: ${profile.major})` : ""}, here are suggested courses:\n\n`;
-
-      const courseItems = availableCourses.slice(0, 5).map((course) => {
-        const title = lang === "ar" ? course.titleAr : (course.titleEn || course.titleAr);
-        const desc = lang === "ar" ? (course.descriptionAr || "") : (course.descriptionEn || course.descriptionAr || "");
-        const duration = course.duration;
-        const hoursWord = t("courses.hours");
-        return `📚 ${title} (${duration} ${hoursWord})\n   ${desc ? desc.substring(0, 80) + (desc.length > 80 ? "..." : "") : ""}`;
-      });
-
-      const footer = lang === "ar"
-        ? "\n\nيمكنك التسجيل في أي من هذه الدورات من صفحة الدورات التدريبية."
-        : "\n\nYou can enroll in any of these courses from the Training Courses page.";
-
-      response = header + courseItems.join("\n\n") + footer;
-    }
-
-    addMessage("assistant", response, "courses");
-    setIsAnalyzing(false);
+    await streamAIResponse(prompt, "courses");
   };
 
   const handleGenerateCV = async () => {
+    const prompt = lang === "ar"
+      ? "أنشئ لي سيرة ذاتية مهنية مبنية على سجلي المهاري تشمل الأنشطة المعتمدة والدورات المكتملة والشهادات وملخص الساعات. رتبها بشكل احترافي."
+      : "Generate a professional CV based on my skill record including approved activities, completed courses, certificates and hours summary. Format it professionally.";
     addMessage("user", t("ai.generateCV"));
-    setIsAnalyzing(true);
-    await simulateDelay();
-
-    const completedEnrollments = enrollments?.filter((e) => e.isCompleted) || [];
-    const completedCourseIds = new Set(completedEnrollments.map((e) => e.courseId));
-    const completedCourseDetails = courses?.filter((c) => completedCourseIds.has(c.id)) || [];
-
-    const divider = "━".repeat(40);
-
-    let cv = "";
-    if (lang === "ar") {
-      cv = `${divider}\n`;
-      cv += `السيرة الذاتية - السجل المهاري\n`;
-      cv += `${divider}\n\n`;
-      cv += `الاسم: ${user?.firstName || ""} ${user?.lastName || ""}\n`;
-      if (profile?.studentId) cv += `الرقم التدريبي: ${profile.studentId}\n`;
-      if (profile?.major) cv += `التخصص: ${profile.major}\n`;
-      if (profile?.phone) cv += `الجوال: ${profile.phone}\n`;
-      cv += `\n${divider}\n`;
-      cv += `الأنشطة المعتمدة (${approved.length})\n`;
-      cv += `${divider}\n\n`;
-      if (approved.length > 0) {
-        approved.forEach((a) => {
-          cv += `• ${a.nameAr}\n`;
-          cv += `  الجهة: ${a.organization} | الساعات: ${a.hours} | النوع: ${t(`activity.types.${a.type}`)}\n\n`;
-        });
-      } else {
-        cv += `لا توجد أنشطة معتمدة بعد.\n\n`;
-      }
-
-      cv += `${divider}\n`;
-      cv += `الدورات المكتملة (${completedCourseDetails.length})\n`;
-      cv += `${divider}\n\n`;
-      if (completedCourseDetails.length > 0) {
-        completedCourseDetails.forEach((c) => {
-          cv += `• ${c.titleAr} (${c.duration} ${t("courses.hours")})\n`;
-        });
-      } else {
-        cv += `لا توجد دورات مكتملة بعد.\n\n`;
-      }
-
-      if (certificates && certificates.length > 0) {
-        cv += `\n${divider}\n`;
-        cv += `الشهادات (${certificates.length})\n`;
-        cv += `${divider}\n\n`;
-        certificates.forEach((cert) => {
-          cv += `• ${cert.titleAr}\n`;
-          if (cert.verificationCode) cv += `  رمز التحقق: ${cert.verificationCode}\n`;
-        });
-      }
-
-      cv += `\n${divider}\n`;
-      cv += `ملخص الساعات\n`;
-      cv += `${divider}\n\n`;
-      Object.entries(ACTIVITY_MIN_HOURS).forEach(([type, required]) => {
-        const current = hoursByType[type] || 0;
-        const status = current >= required ? "✓" : `${current}/${required}`;
-        cv += `${t(`activity.types.${type}`)}: ${status}\n`;
-      });
-    } else {
-      cv = `${divider}\n`;
-      cv += `CURRICULUM VITAE - Skill Record\n`;
-      cv += `${divider}\n\n`;
-      cv += `Name: ${user?.firstName || ""} ${user?.lastName || ""}\n`;
-      if (profile?.studentId) cv += `Student ID: ${profile.studentId}\n`;
-      if (profile?.major) cv += `Major: ${profile.major}\n`;
-      if (profile?.phone) cv += `Phone: ${profile.phone}\n`;
-      cv += `\n${divider}\n`;
-      cv += `APPROVED ACTIVITIES (${approved.length})\n`;
-      cv += `${divider}\n\n`;
-      if (approved.length > 0) {
-        approved.forEach((a) => {
-          cv += `• ${a.nameEn || a.nameAr}\n`;
-          cv += `  Organization: ${a.organization} | Hours: ${a.hours} | Type: ${t(`activity.types.${a.type}`)}\n\n`;
-        });
-      } else {
-        cv += `No approved activities yet.\n\n`;
-      }
-
-      cv += `${divider}\n`;
-      cv += `COMPLETED COURSES (${completedCourseDetails.length})\n`;
-      cv += `${divider}\n\n`;
-      if (completedCourseDetails.length > 0) {
-        completedCourseDetails.forEach((c) => {
-          cv += `• ${c.titleEn || c.titleAr} (${c.duration} ${t("courses.hours")})\n`;
-        });
-      } else {
-        cv += `No completed courses yet.\n\n`;
-      }
-
-      if (certificates && certificates.length > 0) {
-        cv += `\n${divider}\n`;
-        cv += `CERTIFICATES (${certificates.length})\n`;
-        cv += `${divider}\n\n`;
-        certificates.forEach((cert) => {
-          cv += `• ${cert.titleEn || cert.titleAr}\n`;
-          if (cert.verificationCode) cv += `  Verification: ${cert.verificationCode}\n`;
-        });
-      }
-
-      cv += `\n${divider}\n`;
-      cv += `HOURS SUMMARY\n`;
-      cv += `${divider}\n\n`;
-      Object.entries(ACTIVITY_MIN_HOURS).forEach(([type, required]) => {
-        const current = hoursByType[type] || 0;
-        const status = current >= required ? "✓" : `${current}/${required}`;
-        cv += `${t(`activity.types.${type}`)}: ${status}\n`;
-      });
-    }
-
-    addMessage("assistant", cv, "cv");
-    setIsAnalyzing(false);
+    await streamAIResponse(prompt, "cv");
   };
 
   const handleSendMessage = async () => {
@@ -290,46 +177,7 @@ export default function AIAssistantPage() {
     const userMsg = input.trim();
     setInput("");
     addMessage("user", userMsg);
-    setIsAnalyzing(true);
-    await simulateDelay();
-
-    const lowerMsg = userMsg.toLowerCase();
-    const totalApprovedHours = approved.reduce((sum, a) => sum + a.hours, 0);
-    const completedCount = enrollments?.filter((e) => e.isCompleted)?.length || 0;
-
-    let response = "";
-    if (lowerMsg.includes("نشاط") || lowerMsg.includes("activit") || lowerMsg.includes("ساعات") || lowerMsg.includes("hours")) {
-      const neededTypes = Object.entries(ACTIVITY_MIN_HOURS)
-        .filter(([type]) => (hoursByType[type] || 0) < ACTIVITY_MIN_HOURS[type])
-        .map(([type]) => t(`activity.types.${type}`));
-
-      response = lang === "ar"
-        ? `لديك حالياً ${totalApprovedHours} ساعة معتمدة و${approved.length} نشاط معتمد.${neededTypes.length > 0 ? ` تحتاج إلى إكمال ساعات في: ${neededTypes.join("، ")}.` : " أنت أكملت جميع الفئات!"}`
-        : `You currently have ${totalApprovedHours} approved hours and ${approved.length} approved activities.${neededTypes.length > 0 ? ` You need to complete hours in: ${neededTypes.join(", ")}.` : " You've completed all categories!"}`;
-    } else if (lowerMsg.includes("دورة") || lowerMsg.includes("دورات") || lowerMsg.includes("course")) {
-      const enrolledCount = enrollments?.length || 0;
-      response = lang === "ar"
-        ? `أنت مسجّل في ${enrolledCount} دورة، منها ${completedCount} مكتملة. يمكنك تصفح المزيد من الدورات من صفحة الدورات التدريبية.`
-        : `You're enrolled in ${enrolledCount} courses, ${completedCount} completed. Browse more courses on the Training Courses page.`;
-    } else if (lowerMsg.includes("تخصص") || lowerMsg.includes("major") || lowerMsg.includes("مناسب") || lowerMsg.includes("suit")) {
-      response = lang === "ar"
-        ? `تخصصك هو: ${profile?.major || "غير محدد"}. ننصحك بالبحث عن أنشطة مهنية تخصصية وتطوير ذات تتعلق بتخصصك لتعزيز سجلك المهاري.`
-        : `Your major is: ${profile?.major || "Not specified"}. We recommend looking for professional activities and self-development opportunities related to your major to enhance your skill record.`;
-    } else if (lowerMsg.includes("سجل") || lowerMsg.includes("record") || lowerMsg.includes("cv") || lowerMsg.includes("سيرة")) {
-      const totalRequired = Object.values(ACTIVITY_MIN_HOURS).reduce((s, v) => s + v, 0);
-      const totalAchieved = Object.entries(ACTIVITY_MIN_HOURS).reduce((s, [type, req]) => s + Math.min(hoursByType[type] || 0, req), 0);
-      const pct = totalRequired > 0 ? Math.round((totalAchieved / totalRequired) * 100) : 0;
-      response = lang === "ar"
-        ? `تقدمك في السجل المهاري: ${pct}%. لديك ${totalApprovedHours} ساعة معتمدة و${completedCount} دورة مكتملة و${certificates?.length || 0} شهادة.`
-        : `Your skill record progress: ${pct}%. You have ${totalApprovedHours} approved hours, ${completedCount} completed courses, and ${certificates?.length || 0} certificates.`;
-    } else {
-      response = lang === "ar"
-        ? `مرحباً! يمكنني مساعدتك في:\n• تحليل أنشطتك واقتراح ما تحتاجه\n• اقتراح دورات مناسبة لك\n• إنشاء سيرة ذاتية من سجلك المهاري\n\nاستخدم الأزرار أدناه أو اسألني عن أنشطتك، دوراتك، أو تخصصك.`
-        : `Hello! I can help you with:\n• Analyzing your activities and suggesting what you need\n• Suggesting relevant courses for you\n• Generating a CV from your skill record\n\nUse the buttons below or ask me about your activities, courses, or major.`;
-    }
-
-    addMessage("assistant", response);
-    setIsAnalyzing(false);
+    await streamAIResponse(userMsg);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

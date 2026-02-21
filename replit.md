@@ -112,3 +112,4 @@ A bilingual (Arabic/English) web platform for documenting non-academic skills an
 - 2026-02-21: Added profile page, certificates page, expanded sidebar navigation
 - 2026-02-21: Replaced Replit Auth with custom email/password authentication (bcryptjs + express-session)
 - 2026-02-21: Added admin user management - only supervisors can create accounts and assign roles (student/trainer/supervisor)
+- 2026-02-21: Integrated real AI (OpenAI gpt-5-nano) for AI assistant with streaming responses and student context awareness
