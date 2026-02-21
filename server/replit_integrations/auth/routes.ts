@@ -37,13 +37,14 @@ export function registerAuthRoutes(app: Express): void {
         role: "student",
       });
 
-      req.session.regenerate((err: any) => {
-        if (err) return res.status(500).json({ message: "Session error" });
-        req.session.userId = user.id;
-        req.session.save(() => {
-          const { password, ...userWithoutPassword } = user;
-          res.status(201).json(userWithoutPassword);
-        });
+      req.session.userId = user.id;
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Session error" });
+        }
+        const { password, ...userWithoutPassword } = user;
+        res.status(201).json(userWithoutPassword);
       });
     } catch (error) {
       console.error("Register error:", error);
@@ -72,13 +73,14 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(401).json({ message: "البريد أو كلمة المرور غير صحيحة / Invalid email or password" });
       }
 
-      req.session.regenerate((err: any) => {
-        if (err) return res.status(500).json({ message: "Session error" });
-        req.session.userId = user.id;
-        req.session.save(() => {
-          const { password, ...userWithoutPassword } = user;
-          res.json(userWithoutPassword);
-        });
+      req.session.userId = user.id;
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Session error" });
+        }
+        const { password, ...userWithoutPassword } = user;
+        res.json(userWithoutPassword);
       });
     } catch (error) {
       console.error("Login error:", error);
