@@ -12,7 +12,7 @@ interface I18nContextType {
 
 const translations: Record<Language, Record<string, string>> = {
   ar: {
-    "app.name": "درّب",
+    "app.name": "منصة درّب",
     "app.tagline": "وثّق مهاراتك، ابنِ مستقبلك",
     "app.college": "الكلية التقنية",
     "nav.home": "الرئيسية",
@@ -242,7 +242,7 @@ const translations: Record<Language, Record<string, string>> = {
     "admin.users.totalUsers": "إجمالي المستخدمين",
   },
   en: {
-    "app.name": "Drub",
+    "app.name": "Drub Platform",
     "app.tagline": "Document your skills, build your future",
     "app.college": "Technical College",
     "nav.home": "Home",
