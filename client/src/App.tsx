@@ -3,26 +3,95 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { I18nProvider, useI18n } from "@/lib/i18n";
+import { ThemeProvider, ThemeToggle } from "@/components/theme-provider";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useAuth } from "@/hooks/use-auth";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import LandingPage from "@/pages/landing";
+import DashboardPage from "@/pages/dashboard";
+import ActivitiesPage from "@/pages/activities";
+import AddActivityPage from "@/pages/add-activity";
+import CoursesPage from "@/pages/courses";
+import ReviewPage from "@/pages/review";
 import NotFound from "@/pages/not-found";
+import { Skeleton } from "@/components/ui/skeleton";
 
-function Router() {
+function AuthenticatedLayout() {
+  const { isRtl } = useI18n();
+
+  const style = {
+    "--sidebar-width": "17rem",
+    "--sidebar-width-icon": "3.5rem",
+  };
+
   return (
-    <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
-    </Switch>
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex min-h-screen w-full" dir={isRtl ? "rtl" : "ltr"}>
+        <AppSidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="flex items-center justify-between gap-1 p-2 border-b sticky top-0 z-40 bg-background/80 backdrop-blur-md">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-1">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
+          </header>
+          <main className="flex-1 overflow-y-auto">
+            <Switch>
+              <Route path="/" component={DashboardPage} />
+              <Route path="/dashboard" component={DashboardPage} />
+              <Route path="/activities/new" component={AddActivityPage} />
+              <Route path="/activities" component={ActivitiesPage} />
+              <Route path="/courses" component={CoursesPage} />
+              <Route path="/review" component={ReviewPage} />
+              <Route component={NotFound} />
+            </Switch>
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
+}
+
+function AppContent() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="space-y-4 text-center">
+          <Skeleton className="h-12 w-12 rounded-full mx-auto" />
+          <Skeleton className="h-4 w-32 mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Switch>
+        <Route path="/" component={LandingPage} />
+        <Route component={LandingPage} />
+      </Switch>
+    );
+  }
+
+  return <AuthenticatedLayout />;
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <TooltipProvider>
+            <Toaster />
+            <AppContent />
+          </TooltipProvider>
+        </I18nProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
