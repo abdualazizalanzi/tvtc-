@@ -110,7 +110,7 @@ export default function LandingPage() {
                       <GraduationCap className="h-8 w-8 text-primary" />
                     </div>
                     <h2 className="text-2xl font-bold font-serif">
-                      {lang === "ar" ? "سجّل الآن" : "Register Now"}
+                      {lang === "ar" ? "سجل يبعد حيي" : "Register Now"}
                     </h2>
                     <p className="text-muted-foreground text-sm">
                       {lang === "ar"
