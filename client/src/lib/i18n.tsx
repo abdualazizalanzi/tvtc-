@@ -217,7 +217,7 @@ const translations: Record<Language, Record<string, string>> = {
     "auth.loginBtn": "دخول",
     "auth.registerBtn": "تسجيل",
     "auth.passwordMismatch": "كلمات المرور غير متطابقة",
-    "auth.welcomeBack": "مرحباً بعودتك",
+    "auth.welcomeBack": "مرحباً يبعد حيي",
     "auth.welcomeBackDesc": "سجّل دخولك للوصول إلى سجلك المهاري",
     "auth.createAccount": "إنشاء حساب جديد",
     "auth.createAccountDesc": "سجّل الآن لتوثيق مهاراتك وأنشطتك",
