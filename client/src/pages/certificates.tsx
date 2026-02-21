@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -5,13 +6,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Award, Copy, ExternalLink } from "lucide-react";
+import { Award, Copy, ExternalLink, Eye, X } from "lucide-react";
 import { Link } from "wouter";
 import type { Certificate } from "@shared/schema";
+import CertificateView from "@/components/certificate-view";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function CertificatesPage() {
   const { t, lang, dir } = useI18n();
   const { toast } = useToast();
+  const [selectedCertId, setSelectedCertId] = useState<string | null>(null);
 
   const { data: certificates, isLoading } = useQuery<Certificate[]>({
     queryKey: ["/api/certificates"],
@@ -47,12 +51,12 @@ export default function CertificatesPage() {
       ) : certificates && certificates.length > 0 ? (
         <div className="grid sm:grid-cols-2 gap-4">
           {certificates.map((cert) => (
-            <Card key={cert.id} data-testid={`card-certificate-${cert.id}`}>
+            <Card key={cert.id} data-testid={`card-certificate-${cert.id}`} className="group hover:border-primary/40 transition-colors">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div className="min-w-0 flex-1">
                     <p
-                      className="font-semibold truncate"
+                      className="font-semibold truncate group-hover:text-primary transition-colors"
                       data-testid={`text-cert-title-${cert.id}`}
                     >
                       {lang === "ar"
@@ -63,7 +67,7 @@ export default function CertificatesPage() {
                       {t("certificate.completion")}
                     </Badge>
                   </div>
-                  <Award className="h-5 w-5 text-muted-foreground shrink-0" />
+                  <Award className="h-5 w-5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
                 </div>
 
                 <div className="text-sm text-muted-foreground space-y-1">
@@ -87,24 +91,30 @@ export default function CertificatesPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-8"
+                    onClick={() => setSelectedCertId(cert.id)}
+                  >
+                    <Eye className="h-3.5 w-3.5 me-1.5" />
+                    {lang === "ar" ? "عرض الشهادة" : "View Certificate"}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
                     onClick={() => copyCode(cert.verificationCode || "")}
                     data-testid={`button-copy-code-${cert.id}`}
                   >
                     <Copy className="h-3.5 w-3.5" />
-                    <span className="ms-1.5">
-                      {t("certificate.verificationCode")}
-                    </span>
                   </Button>
-                  <Link href={`/verify/${cert.verificationCode}`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      data-testid={`link-verify-${cert.id}`}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                      <span className="ms-1.5">{t("certificate.verify")}</span>
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => window.open(`/verify/${cert.verificationCode}`, '_blank')}
+                    data-testid={`link-verify-${cert.id}`}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -125,6 +135,26 @@ export default function CertificatesPage() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!selectedCertId} onOpenChange={(open) => !open && setSelectedCertId(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-5xl p-0 overflow-hidden border-none bg-transparent shadow-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>View Certificate</DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute right-4 top-4 z-50 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md text-white print:hidden"
+              onClick={() => setSelectedCertId(null)}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            {selectedCertId && <CertificateView certificateId={selectedCertId} />}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

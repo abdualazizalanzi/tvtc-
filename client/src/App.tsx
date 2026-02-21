@@ -23,6 +23,7 @@ import TrainerDashboardPage from "@/pages/trainer-dashboard";
 import SupervisorDashboardPage from "@/pages/supervisor-dashboard";
 import ProfilePage from "@/pages/profile";
 import CertificatesPage from "@/pages/certificates";
+import VerifyCertificatePage from "@/pages/verify-certificate";
 import CompleteProfilePage from "@/pages/complete-profile";
 import AdminUsersPage from "@/pages/admin-users";
 import NotFound from "@/pages/not-found";
@@ -63,6 +64,7 @@ function AuthenticatedLayout() {
               <Route path="/admin/users" component={AdminUsersPage} />
               <Route path="/profile" component={ProfilePage} />
               <Route path="/certificates" component={CertificatesPage} />
+              <Route path="/verify/:code" component={VerifyCertificatePage} />
               <Route path="/ai-assistant" component={AIAssistantPage} />
               <Route path="/skill-record" component={SkillRecordPage} />
               <Route component={NotFound} />
