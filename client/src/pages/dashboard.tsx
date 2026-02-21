@@ -15,6 +15,9 @@ import {
   PlusCircle,
   ListChecks,
   TrendingUp,
+  FileText,
+  Bot,
+  Award,
 } from "lucide-react";
 import type { Activity, CourseEnrollment } from "@shared/schema";
 
@@ -253,6 +256,24 @@ export default function DashboardPage() {
                 <Button variant="outline" className="w-full justify-start" data-testid="button-quick-activities">
                   <ListChecks className="h-4 w-4" />
                   <span className="ms-2">{t("activity.myActivities")}</span>
+                </Button>
+              </Link>
+              <Link href="/skill-record">
+                <Button variant="outline" className="w-full justify-start" data-testid="button-quick-pdf">
+                  <FileText className="h-4 w-4" />
+                  <span className="ms-2">{t("dashboard.downloadPdf")}</span>
+                </Button>
+              </Link>
+              <Link href="/ai-assistant">
+                <Button variant="outline" className="w-full justify-start" data-testid="button-quick-ai">
+                  <Bot className="h-4 w-4" />
+                  <span className="ms-2">{t("dashboard.askAi")}</span>
+                </Button>
+              </Link>
+              <Link href="/certificates">
+                <Button variant="outline" className="w-full justify-start" data-testid="button-quick-certificates">
+                  <Award className="h-4 w-4" />
+                  <span className="ms-2">{t("nav.certificates")}</span>
                 </Button>
               </Link>
             </CardContent>

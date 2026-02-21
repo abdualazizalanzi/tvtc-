@@ -15,6 +15,13 @@ import ActivitiesPage from "@/pages/activities";
 import AddActivityPage from "@/pages/add-activity";
 import CoursesPage from "@/pages/courses";
 import ReviewPage from "@/pages/review";
+import CoursePlayerPage from "@/pages/course-player";
+import AIAssistantPage from "@/pages/ai-assistant";
+import SkillRecordPage from "@/pages/skill-record";
+import TrainerDashboardPage from "@/pages/trainer-dashboard";
+import SupervisorDashboardPage from "@/pages/supervisor-dashboard";
+import ProfilePage from "@/pages/profile";
+import CertificatesPage from "@/pages/certificates";
 import NotFound from "@/pages/not-found";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -44,8 +51,15 @@ function AuthenticatedLayout() {
               <Route path="/dashboard" component={DashboardPage} />
               <Route path="/activities/new" component={AddActivityPage} />
               <Route path="/activities" component={ActivitiesPage} />
+              <Route path="/courses/:id" component={CoursePlayerPage} />
               <Route path="/courses" component={CoursesPage} />
               <Route path="/review" component={ReviewPage} />
+              <Route path="/trainer" component={TrainerDashboardPage} />
+              <Route path="/supervisor" component={SupervisorDashboardPage} />
+              <Route path="/profile" component={ProfilePage} />
+              <Route path="/certificates" component={CertificatesPage} />
+              <Route path="/ai-assistant" component={AIAssistantPage} />
+              <Route path="/skill-record" component={SkillRecordPage} />
               <Route component={NotFound} />
             </Switch>
           </main>

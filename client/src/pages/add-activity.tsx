@@ -3,30 +3,24 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, ArrowRight, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Send, Upload, Info } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/auth-utils";
+import { ACTIVITY_MIN_HOURS } from "@shared/schema";
+import { useState, useRef } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const activityFormSchema = z.object({
   type: z.enum([
@@ -50,6 +44,8 @@ export default function AddActivityPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const BackArrow = isRtl ? ArrowRight : ArrowLeft;
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<ActivityFormData>({
     resolver: zodResolver(activityFormSchema),
@@ -66,13 +62,33 @@ export default function AddActivityPage() {
     },
   });
 
+  const selectedType = form.watch("type");
+  const minHours = ACTIVITY_MIN_HOURS[selectedType] || 1;
+
   const mutation = useMutation({
     mutationFn: async (data: ActivityFormData) => {
-      const res = await apiRequest("POST", "/api/activities", {
-        ...data,
-        startDate: new Date(data.startDate).toISOString(),
-        endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          if (key === "startDate" || key === "endDate") {
+            formData.append(key, new Date(value as string).toISOString());
+          } else {
+            formData.append(key, String(value));
+          }
+        }
       });
+      if (certificateFile) {
+        formData.append("certificate", certificateFile);
+      }
+      const res = await fetch("/api/activities", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`${res.status}: ${text}`);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -89,11 +105,7 @@ export default function AddActivityPage() {
         setTimeout(() => { window.location.href = "/api/login"; }, 500);
         return;
       }
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: t("common.error"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -135,7 +147,7 @@ export default function AddActivityPage() {
                       <SelectContent>
                         {activityTypes.map((type) => (
                           <SelectItem key={type} value={type}>
-                            {t(`activity.types.${type}`)}
+                            {t(`activity.types.${type}`)} ({ACTIVITY_MIN_HOURS[type]} {t("courses.hours")})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -145,13 +157,22 @@ export default function AddActivityPage() {
                 )}
               />
 
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  {lang === "ar"
+                    ? `الحد الأدنى لهذا النوع: ${minHours} ساعة`
+                    : `Minimum hours for this type: ${minHours} hours`}
+                </AlertDescription>
+              </Alert>
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="nameAr"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("activity.name")} ({lang === "ar" ? "عربي" : "Arabic"})</FormLabel>
+                      <FormLabel>{t("activity.nameAr")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-name-ar" dir="rtl" />
                       </FormControl>
@@ -164,7 +185,7 @@ export default function AddActivityPage() {
                   name="nameEn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("activity.name")} ({lang === "ar" ? "إنجليزي" : "English"})</FormLabel>
+                      <FormLabel>{t("activity.nameEn")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-name-en" dir="ltr" />
                       </FormControl>
@@ -232,6 +253,27 @@ export default function AddActivityPage() {
                 />
               </div>
 
+              <div>
+                <label className="text-sm font-medium mb-2 block">{t("activity.certificate")}</label>
+                <div
+                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  data-testid="upload-certificate"
+                >
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {certificateFile ? certificateFile.name : t("activity.certificateHint")}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => setCertificateFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+              </div>
+
               <FormField
                 control={form.control}
                 name="descriptionAr"
@@ -261,12 +303,7 @@ export default function AddActivityPage() {
               />
 
               <div className="flex justify-end gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setLocation("/activities")}
-                  data-testid="button-cancel"
-                >
+                <Button type="button" variant="outline" onClick={() => setLocation("/activities")} data-testid="button-cancel">
                   {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">

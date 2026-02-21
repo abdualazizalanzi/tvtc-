@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Clock, Search, GraduationCap, CheckCircle2 } from "lucide-react";
+import { BookOpen, Clock, Search, GraduationCap, CheckCircle2, Play } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 import type { Course, CourseEnrollment } from "@shared/schema";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 
@@ -63,7 +64,7 @@ export default function CoursesPage() {
     );
   });
 
-  const categories = [...new Set(courses?.map((c) => c.category) || [])];
+  const categories = Array.from(new Set(courses?.map((c) => c.category) || []));
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
@@ -142,10 +143,12 @@ export default function CoursesPage() {
                       <Badge variant="secondary" className="text-xs">{course.category}</Badge>
                     </div>
                     {isEnrolled ? (
-                      <Button variant="secondary" size="sm" className="w-full" disabled>
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span className="ms-1.5">{t("courses.enrolled")}</span>
-                      </Button>
+                      <Link href={`/courses/${course.id}`}>
+                        <Button variant="secondary" size="sm" className="w-full" data-testid={`button-view-course-${course.id}`}>
+                          <Play className="h-3.5 w-3.5" />
+                          <span className="ms-1.5">{t("courses.viewCourse")}</span>
+                        </Button>
+                      </Link>
                     ) : (
                       <Button
                         size="sm"
