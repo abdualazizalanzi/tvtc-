@@ -221,6 +221,11 @@ const translations: Record<Language, Record<string, string>> = {
     "auth.welcomeBackDesc": "سجّل دخولك للوصول إلى سجلك المهاري",
     "auth.createAccount": "إنشاء حساب جديد",
     "auth.createAccountDesc": "سجّل الآن لتوثيق مهاراتك وأنشطتك",
+    "auth.role": "نوع الحساب",
+    "auth.role.student": "متدرب",
+    "auth.role.trainer": "مدرب",
+    "auth.role.supervisor": "مشرف",
+    "auth.role.desc": "اختر نوع حسابك",
   },
   en: {
     "app.name": "Skill Record",
@@ -432,6 +437,11 @@ const translations: Record<Language, Record<string, string>> = {
     "auth.welcomeBackDesc": "Sign in to access your skill record",
     "auth.createAccount": "Create Account",
     "auth.createAccountDesc": "Register now to document your skills and activities",
+    "auth.role": "Account Type",
+    "auth.role.student": "Student",
+    "auth.role.trainer": "Trainer",
+    "auth.role.supervisor": "Supervisor",
+    "auth.role.desc": "Select your account type",
   },
 };
 

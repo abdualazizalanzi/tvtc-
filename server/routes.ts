@@ -64,10 +64,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         trainingId: z.string().optional(),
         phone: z.string().optional(),
         major: z.string().optional(),
+        role: z.enum(["student", "trainer", "supervisor"]).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
-      const profile = await storage.upsertStudentProfile({ userId, ...parsed.data });
+      const existingProfile = await storage.getStudentProfile(userId);
+      const profileData: any = { userId, ...parsed.data };
+      if (existingProfile?.role) {
+        profileData.role = existingProfile.role;
+      }
+      const profile = await storage.upsertStudentProfile(profileData);
       storage.createAuditLog({ actorUserId: userId, action: "profile_update", entityType: "student_profile", entityId: profile.id, details: parsed.data }).catch(() => {});
       res.json(profile);
     } catch (error) {

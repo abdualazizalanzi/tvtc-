@@ -3,6 +3,7 @@ import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { storage } from "../../storage";
 
 export function registerAuthRoutes(app: Express): void {
   app.post("/api/auth/register", async (req: any, res) => {
@@ -12,6 +13,7 @@ export function registerAuthRoutes(app: Express): void {
         password: z.string().min(6),
         firstName: z.string().min(1),
         lastName: z.string().min(1),
+        role: z.enum(["student", "trainer", "supervisor"]).default("student"),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
@@ -29,6 +31,11 @@ export function registerAuthRoutes(app: Express): void {
         password: hashedPassword,
         firstName: parsed.data.firstName,
         lastName: parsed.data.lastName,
+      });
+
+      await storage.upsertStudentProfile({
+        userId: user.id,
+        role: parsed.data.role as "student" | "trainer" | "supervisor",
       });
 
       req.session.regenerate((err: any) => {
