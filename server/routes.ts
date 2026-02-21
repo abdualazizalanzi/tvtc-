@@ -741,6 +741,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       ]);
 
       const user = await authStorage.getUser(userId);
+      const role = profile?.role || "student";
       const approved = activities.filter((a: any) => a.status === "approved");
       const hoursByType: Record<string, number> = {};
       approved.forEach((a: any) => {
@@ -760,11 +761,73 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const completedEnrollments = enrollmentsData.filter((e: any) => e.isCompleted);
       const availableCourses = coursesData.filter((c: any) => c.isPublished && !enrolledCourseIds.has(c.id));
 
-      const systemPrompt = lang === "ar" 
-        ? `أنت مساعد ذكي متخصص في نظام السجل المهاري للكلية التقنية. تساعد الطلاب في تتبع أنشطتهم وساعاتهم وتقدمهم. أجب دائماً باللغة العربية.
+      let trainerContext = "";
+      let supervisorContext = "";
 
-معلومات الطالب:
+      if (role === "trainer" || role === "supervisor") {
+        const allCourses = await storage.getAllCourses();
+        const trainerCourses = role === "trainer" 
+          ? allCourses.filter((c: any) => c.instructorId === userId) 
+          : allCourses;
+        const publishedCount = trainerCourses.filter((c: any) => c.isPublished).length;
+        const draftCount = trainerCourses.filter((c: any) => !c.isPublished).length;
+
+        if (lang === "ar") {
+          trainerContext = `
+معلومات المدرب:
+- إجمالي الدورات: ${trainerCourses.length}
+- دورات منشورة: ${publishedCount}
+- دورات مسودة: ${draftCount}
+- الدورات: ${trainerCourses.slice(0, 10).map((c: any) => `${c.titleAr} (${c.isPublished ? "منشورة" : "مسودة"}, ${c.duration} ساعة)`).join("، ") || "لا توجد"}`;
+        } else {
+          trainerContext = `
+Trainer Info:
+- Total courses: ${trainerCourses.length}
+- Published: ${publishedCount}
+- Drafts: ${draftCount}
+- Courses: ${trainerCourses.slice(0, 10).map((c: any) => `${c.titleEn || c.titleAr} (${c.isPublished ? "published" : "draft"}, ${c.duration}h)`).join(", ") || "None"}`;
+        }
+      }
+
+      if (role === "supervisor") {
+        const allActivities = await storage.getAllActivities();
+        const allUsers = await storage.getAllUsersWithProfiles();
+        const pendingActivities = allActivities.filter((a: any) => a.status === "submitted" || a.status === "under_review");
+        const studentsCount = allUsers.filter((u: any) => u.role === "student" || !u.role).length;
+        const trainersCount = allUsers.filter((u: any) => u.role === "trainer").length;
+        const totalApproved = allActivities.filter((a: any) => a.status === "approved").length;
+        const totalRejected = allActivities.filter((a: any) => a.status === "rejected").length;
+
+        if (lang === "ar") {
+          supervisorContext = `
+معلومات الإشراف:
+- إجمالي المستخدمين: ${allUsers.length} (${studentsCount} متدرب، ${trainersCount} مدرب)
+- أنشطة بانتظار المراجعة: ${pendingActivities.length}
+- أنشطة معتمدة: ${totalApproved}
+- أنشطة مرفوضة: ${totalRejected}
+- إجمالي الأنشطة: ${allActivities.length}
+- إجمالي الدورات المنشورة: ${coursesData.filter((c: any) => c.isPublished).length}`;
+        } else {
+          supervisorContext = `
+Supervision Info:
+- Total users: ${allUsers.length} (${studentsCount} students, ${trainersCount} trainers)
+- Activities pending review: ${pendingActivities.length}
+- Approved activities: ${totalApproved}
+- Rejected activities: ${totalRejected}
+- Total activities: ${allActivities.length}
+- Published courses: ${coursesData.filter((c: any) => c.isPublished).length}`;
+        }
+      }
+
+      const roleLabel = { ar: { student: "متدرب", trainer: "مدرب", supervisor: "مشرف" }, en: { student: "Student", trainer: "Trainer", supervisor: "Supervisor" } };
+      const roleName = (roleLabel as any)[lang]?.[role] || role;
+
+      const systemPrompt = lang === "ar" 
+        ? `أنت مساعد ذكي متخصص في نظام السجل المهاري (منصة درّب) للكلية التقنية. أجب دائماً باللغة العربية. كن ودوداً ومختصراً.
+
+معلومات المستخدم:
 - الاسم: ${user?.firstName || ""} ${user?.lastName || ""}
+- الدور: ${roleName}
 - الرقم التدريبي: ${profile?.studentId || "غير محدد"}
 - التخصص: ${profile?.major || "غير محدد"}
 - الأنشطة المعتمدة: ${approved.length}
@@ -772,6 +835,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 - الدورات المسجلة: ${enrollmentsData.length}
 - الدورات المكتملة: ${completedEnrollments.length}
 - الشهادات: ${certificatesData.length}
+${trainerContext}${supervisorContext}
 
 الساعات المطلوبة لكل فئة:
 ${Object.entries(ACTIVITY_MIN_HOURS).map(([type, req]) => `- ${type}: مطلوب ${req} ساعة، متحقق ${hoursByType[type] || 0} ساعة`).join("\n")}
@@ -779,17 +843,15 @@ ${Object.entries(ACTIVITY_MIN_HOURS).map(([type, req]) => `- ${type}: مطلوب
 الفئات التي تحتاج ساعات إضافية:
 ${neededTypes.length > 0 ? neededTypes.map(n => `- ${n.type}: يحتاج ${n.remaining} ساعة إضافية`).join("\n") : "لا يوجد - أكمل جميع الفئات!"}
 
-الدورات المتاحة للتسجيل:
+الدورات المتاحة:
 ${availableCourses.slice(0, 5).map((c: any) => `- ${c.titleAr} (${c.duration} ساعة)`).join("\n") || "لا توجد دورات متاحة حالياً"}
 
-الأنشطة المعتمدة للطالب:
-${approved.slice(0, 10).map((a: any) => `- ${a.nameAr} (${a.type}, ${a.hours} ساعة، ${a.organization})`).join("\n") || "لا توجد أنشطة معتمدة بعد"}
+${role === "trainer" ? "ساعد المدرب في تحسين دوراته وإدارة المحتوى التعليمي واقتراح أفكار لدورات جديدة ومراجعة المشاريع." : role === "supervisor" ? "ساعد المشرف في تحليل أداء المنصة وإدارة المستخدمين ومراجعة الأنشطة واتخاذ القرارات الإدارية المناسبة." : "ساعد المتدرب بتقديم نصائح واقتراحات مفيدة لإكمال سجله المهاري."}`
+        : `You are an intelligent assistant specialized in the Skill Record system (Drub Platform) for the Technical College. Always respond in English. Be friendly and concise.
 
-ساعد الطالب بتقديم نصائح واقتراحات مفيدة لإكمال سجله المهاري. كن ودوداً ومختصراً.`
-        : `You are an intelligent assistant specialized in the Skill Record system for the Technical College. You help students track activities, hours, and progress. Always respond in English.
-
-Student Info:
+User Info:
 - Name: ${user?.firstName || ""} ${user?.lastName || ""}
+- Role: ${roleName}
 - Student ID: ${profile?.studentId || "Not set"}
 - Major: ${profile?.major || "Not set"}
 - Approved activities: ${approved.length}
@@ -797,6 +859,7 @@ Student Info:
 - Enrolled courses: ${enrollmentsData.length}
 - Completed courses: ${completedEnrollments.length}
 - Certificates: ${certificatesData.length}
+${trainerContext}${supervisorContext}
 
 Required hours per category:
 ${Object.entries(ACTIVITY_MIN_HOURS).map(([type, req]) => `- ${type}: required ${req}h, achieved ${hoursByType[type] || 0}h`).join("\n")}
@@ -804,13 +867,10 @@ ${Object.entries(ACTIVITY_MIN_HOURS).map(([type, req]) => `- ${type}: required $
 Categories needing more hours:
 ${neededTypes.length > 0 ? neededTypes.map(n => `- ${n.type}: needs ${n.remaining} more hours`).join("\n") : "None - all categories completed!"}
 
-Available courses for enrollment:
+Available courses:
 ${availableCourses.slice(0, 5).map((c: any) => `- ${c.titleEn || c.titleAr} (${c.duration} hours)`).join("\n") || "No courses available currently"}
 
-Approved activities:
-${approved.slice(0, 10).map((a: any) => `- ${a.nameEn || a.nameAr} (${a.type}, ${a.hours}h, ${a.organization})`).join("\n") || "No approved activities yet"}
-
-Help the student with useful advice and suggestions to complete their skill record. Be friendly and concise.`;
+${role === "trainer" ? "Help the trainer improve their courses, manage educational content, suggest new course ideas, and review projects." : role === "supervisor" ? "Help the supervisor analyze platform performance, manage users, review activities, and make appropriate administrative decisions." : "Help the student with useful advice and suggestions to complete their skill record."}`;
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");

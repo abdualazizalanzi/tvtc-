@@ -16,6 +16,11 @@ import {
   Lightbulb,
   GraduationCap,
   Send,
+  BarChart3,
+  Users,
+  ClipboardCheck,
+  BookOpen,
+  TrendingUp,
 } from "lucide-react";
 import {
   ACTIVITY_MIN_HOURS,
@@ -61,6 +66,7 @@ export default function AIAssistantPage() {
     queryKey: ["/api/certificates"],
   });
 
+  const role = profile?.role || "student";
   const isLoading = activitiesLoading || enrollmentsLoading || coursesLoading || profileLoading || certificatesLoading;
 
   useEffect(() => {
@@ -172,6 +178,38 @@ export default function AIAssistantPage() {
     await streamAIResponse(prompt, "cv");
   };
 
+  const handleAnalyzePlatform = async () => {
+    const prompt = lang === "ar"
+      ? "حلل أداء المنصة بشكل شامل. كم عدد المتدربين النشطين؟ ما نسبة الأنشطة المعتمدة؟ ما الدورات الأكثر إقبالاً؟ قدم توصيات لتحسين الأداء."
+      : "Analyze the platform performance comprehensively. How many active students? What's the approval rate? Which courses are most popular? Provide recommendations for improvement.";
+    addMessage("user", lang === "ar" ? "تحليل أداء المنصة" : "Platform Performance Analysis");
+    await streamAIResponse(prompt);
+  };
+
+  const handleReviewInsights = async () => {
+    const prompt = lang === "ar"
+      ? "راجع الأنشطة المعلقة وقدم توصيات بشأن المراجعة. ما الأنماط الشائعة في الأنشطة المقدمة؟ هل هناك مجالات تحتاج اهتماماً خاصاً؟"
+      : "Review pending activities and provide recommendations. What are common patterns in submitted activities? Are there areas needing special attention?";
+    addMessage("user", lang === "ar" ? "تحليل المراجعات" : "Review Insights");
+    await streamAIResponse(prompt);
+  };
+
+  const handleCourseImprovement = async () => {
+    const prompt = lang === "ar"
+      ? "حلل دوراتي التدريبية واقترح تحسينات. كيف أطور المحتوى؟ ما المواضيع الجديدة التي يجب إضافتها؟ كيف أزيد تفاعل المتدربين؟"
+      : "Analyze my training courses and suggest improvements. How can I develop the content? What new topics should be added? How to increase student engagement?";
+    addMessage("user", lang === "ar" ? "تحسين الدورات" : "Course Improvement");
+    await streamAIResponse(prompt);
+  };
+
+  const handleNewCourseIdeas = async () => {
+    const prompt = lang === "ar"
+      ? "اقترح أفكار لدورات تدريبية جديدة بناءً على احتياجات المتدربين والفجوات في الدورات الحالية. ما المهارات المطلوبة في سوق العمل؟"
+      : "Suggest new course ideas based on student needs and gaps in current courses. What skills are in demand in the job market?";
+    addMessage("user", lang === "ar" ? "أفكار دورات جديدة" : "New Course Ideas");
+    await streamAIResponse(prompt);
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim()) return;
     const userMsg = input.trim();
@@ -205,7 +243,13 @@ export default function AIAssistantPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold" data-testid="text-ai-title">{t("ai.title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("ai.suggest")}</p>
+          <p className="text-sm text-muted-foreground">
+            {role === "supervisor"
+              ? (lang === "ar" ? "مساعدك الذكي لتحليل المنصة وإدارة المستخدمين والأنشطة" : "Your AI assistant for platform analytics, user & activity management")
+              : role === "trainer"
+              ? (lang === "ar" ? "مساعدك الذكي لتطوير الدورات وتحسين المحتوى التعليمي" : "Your AI assistant for course development and content improvement")
+              : t("ai.suggest")}
+          </p>
         </div>
       </div>
 
@@ -237,6 +281,50 @@ export default function AIAssistantPage() {
           <FileText className="h-4 w-4" />
           <span className="ms-1.5">{t("ai.generateCV")}</span>
         </Button>
+        {(role === "trainer" || role === "supervisor") && (
+          <>
+            <Button
+              variant="outline"
+              onClick={handleCourseImprovement}
+              disabled={isAnalyzing}
+              data-testid="button-course-improvement"
+            >
+              <BookOpen className="h-4 w-4" />
+              <span className="ms-1.5">{lang === "ar" ? "تحسين الدورات" : "Improve Courses"}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleNewCourseIdeas}
+              disabled={isAnalyzing}
+              data-testid="button-new-course-ideas"
+            >
+              <TrendingUp className="h-4 w-4" />
+              <span className="ms-1.5">{lang === "ar" ? "أفكار دورات جديدة" : "New Course Ideas"}</span>
+            </Button>
+          </>
+        )}
+        {role === "supervisor" && (
+          <>
+            <Button
+              variant="outline"
+              onClick={handleAnalyzePlatform}
+              disabled={isAnalyzing}
+              data-testid="button-analyze-platform"
+            >
+              <BarChart3 className="h-4 w-4" />
+              <span className="ms-1.5">{lang === "ar" ? "تحليل المنصة" : "Platform Analytics"}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleReviewInsights}
+              disabled={isAnalyzing}
+              data-testid="button-review-insights"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              <span className="ms-1.5">{lang === "ar" ? "تحليل المراجعات" : "Review Insights"}</span>
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-0" data-testid="chat-messages">
