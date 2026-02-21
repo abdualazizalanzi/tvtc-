@@ -11,6 +11,7 @@ import {
   courseEnrollments,
   certificates,
   lessonProgress,
+  auditLogs,
   type User,
   type UpsertUser,
   type InsertActivity,
@@ -33,9 +34,11 @@ import {
   type StudentProfile,
   type InsertStudentProfile,
   type LessonProgress,
+  type InsertAuditLog,
+  type AuditLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql, count } from "drizzle-orm";
+import { eq, desc, and, sql, count, sum } from "drizzle-orm";
 
 export interface IStorage {
   getActivitiesByUser(userId: string): Promise<Activity[]>;
@@ -87,6 +90,14 @@ export interface IStorage {
   upsertStudentProfile(profile: InsertStudentProfile): Promise<StudentProfile>;
 
   getStats(): Promise<{ totalStudents: number; totalActivities: number; totalApproved: number; totalCourses: number }>;
+
+  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(limit?: number): Promise<(AuditLog & { actorName?: string })[]>;
+
+  getReportHoursByStudent(): Promise<{ userId: string; userName: string; major: string; totalHours: number; approvedActivities: number }[]>;
+  getReportStudentsByMajor(): Promise<{ major: string; count: number }[]>;
+  getReportCompletedCourses(): Promise<{ courseId: string; courseName: string; completedCount: number }[]>;
+  getReportApprovedActivities(): Promise<{ type: string; count: number; totalHours: number }[]>;
 }
 
 class DatabaseStorage implements IStorage {
@@ -331,6 +342,81 @@ class DatabaseStorage implements IStorage {
       totalApproved: approvedResult.count,
       totalCourses: coursesResult.count,
     };
+  }
+
+  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+    const [result] = await db.insert(auditLogs).values(log).returning();
+    return result;
+  }
+
+  async getAuditLogs(limit = 100): Promise<(AuditLog & { actorName?: string })[]> {
+    const results = await db
+      .select({ log: auditLogs, firstName: users.firstName, lastName: users.lastName })
+      .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.actorUserId, users.id))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
+    return results.map((r) => ({
+      ...r.log,
+      actorName: [r.firstName, r.lastName].filter(Boolean).join(" ") || undefined,
+    }));
+  }
+
+  async getReportHoursByStudent(): Promise<{ userId: string; userName: string; major: string; totalHours: number; approvedActivities: number }[]> {
+    const results = await db
+      .select({
+        userId: studentProfiles.userId,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        major: studentProfiles.major,
+        totalHours: sum(activities.hours),
+        approvedActivities: count(activities.id),
+      })
+      .from(studentProfiles)
+      .leftJoin(users, eq(studentProfiles.userId, users.id))
+      .leftJoin(activities, and(eq(activities.userId, studentProfiles.userId), eq(activities.status, "approved")))
+      .groupBy(studentProfiles.userId, users.firstName, users.lastName, studentProfiles.major);
+    return results.map((r) => ({
+      userId: r.userId,
+      userName: [r.firstName, r.lastName].filter(Boolean).join(" ") || "—",
+      major: r.major || "—",
+      totalHours: Number(r.totalHours) || 0,
+      approvedActivities: r.approvedActivities,
+    }));
+  }
+
+  async getReportStudentsByMajor(): Promise<{ major: string; count: number }[]> {
+    const results = await db
+      .select({ major: studentProfiles.major, count: count() })
+      .from(studentProfiles)
+      .groupBy(studentProfiles.major);
+    return results.map((r) => ({ major: r.major || "—", count: r.count }));
+  }
+
+  async getReportCompletedCourses(): Promise<{ courseId: string; courseName: string; completedCount: number }[]> {
+    const results = await db
+      .select({ courseId: courses.id, courseName: courses.titleAr, completedCount: count(courseEnrollments.id) })
+      .from(courses)
+      .leftJoin(courseEnrollments, and(eq(courseEnrollments.courseId, courses.id), eq(courseEnrollments.isCompleted, true)))
+      .groupBy(courses.id, courses.titleAr);
+    return results.map((r) => ({
+      courseId: r.courseId,
+      courseName: r.courseName,
+      completedCount: r.completedCount,
+    }));
+  }
+
+  async getReportApprovedActivities(): Promise<{ type: string; count: number; totalHours: number }[]> {
+    const results = await db
+      .select({ type: activities.type, count: count(), totalHours: sum(activities.hours) })
+      .from(activities)
+      .where(eq(activities.status, "approved"))
+      .groupBy(activities.type);
+    return results.map((r) => ({
+      type: r.type,
+      count: r.count,
+      totalHours: Number(r.totalHours) || 0,
+    }));
   }
 }
 

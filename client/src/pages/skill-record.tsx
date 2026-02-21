@@ -21,6 +21,7 @@ import {
   Clock,
   CheckCircle,
   QrCode,
+  Stamp,
 } from "lucide-react";
 import type {
   Activity,
@@ -30,6 +31,7 @@ import type {
   StudentProfile,
 } from "@shared/schema";
 import { ACTIVITY_MIN_HOURS } from "@shared/schema";
+import collegeStamp from "@/assets/images/college-stamp.png";
 
 export default function SkillRecordPage() {
   const { t, lang } = useI18n();
@@ -380,6 +382,53 @@ export default function SkillRecordPage() {
           </CardContent>
         </Card>
 
+        {certificates && certificates.length > 0 && (
+          <Card data-testid="card-certificates-list">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Award className="h-4 w-4" />
+                {lang === "ar" ? "الشهادات" : "Certificates"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{lang === "ar" ? "الشهادة" : "Certificate"}</TableHead>
+                      <TableHead>{lang === "ar" ? "النوع" : "Type"}</TableHead>
+                      <TableHead>{lang === "ar" ? "تاريخ الإصدار" : "Issue Date"}</TableHead>
+                      <TableHead>{lang === "ar" ? "رمز التحقق" : "Verification Code"}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {certificates.map((cert) => (
+                      <TableRow key={cert.id} data-testid={`cert-row-${cert.id}`}>
+                        <TableCell className="font-medium">
+                          {lang === "ar" ? cert.titleAr : cert.titleEn || cert.titleAr}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {cert.type === "course_completion"
+                              ? lang === "ar" ? "إتمام دورة" : "Course Completion"
+                              : lang === "ar" ? "نشاط" : "Activity"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {cert.issuedAt
+                            ? new Date(cert.issuedAt).toLocaleDateString(lang === "ar" ? "ar-SA" : "en-US")
+                            : "-"}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">{cert.verificationCode}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card data-testid="card-qr-verification">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -388,16 +437,29 @@ export default function SkillRecordPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col items-center gap-3 py-4">
-              <div className="w-32 h-32 border-2 border-dashed rounded-md flex items-center justify-center bg-muted/50">
-                <QrCode className="h-16 w-16 text-muted-foreground" />
+            <div className="flex items-center justify-around gap-6 py-4 flex-wrap">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-32 h-32 border-2 border-dashed rounded-md flex items-center justify-center bg-muted/50">
+                  <QrCode className="h-16 w-16 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground" data-testid="text-verification-code">
+                  {t("certificate.verificationCode")}: <span className="font-mono font-semibold">{verificationCode}</span>
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground" data-testid="text-verification-code">
-                {t("certificate.verificationCode")}: <span className="font-mono font-semibold">{verificationCode}</span>
-              </p>
+              <div className="flex flex-col items-center gap-3" data-testid="electronic-stamp">
+                <img src={collegeStamp} alt={lang === "ar" ? "الختم الإلكتروني" : "Electronic Stamp"} className="w-28 h-28 opacity-80" />
+                <p className="text-xs text-muted-foreground font-medium">
+                  {lang === "ar" ? "ختم إلكتروني رسمي" : "Official Electronic Stamp"}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        <div className="text-center text-xs text-muted-foreground py-4 border-t" data-testid="text-footer">
+          <p>{lang === "ar" ? "هذه الوثيقة صادرة إلكترونياً من نظام السجل المهاري - الكلية التقنية" : "This document is electronically issued from the Skill Record System - Technical College"}</p>
+          <p className="mt-1">{lang === "ar" ? "يمكن التحقق من صحة الوثيقة عبر رمز QR أعلاه" : "Verify document authenticity via the QR code above"}</p>
+        </div>
       </div>
     </>
   );

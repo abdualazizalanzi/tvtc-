@@ -68,6 +68,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
       const profile = await storage.upsertStudentProfile({ userId, ...parsed.data });
+      storage.createAuditLog({ actorUserId: userId, action: "profile_update", entityType: "student_profile", entityId: profile.id, details: parsed.data }).catch(() => {});
       res.json(profile);
     } catch (error) {
       console.error("Profile update error:", error);
@@ -137,6 +138,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = reviewSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
       const activity = await storage.reviewActivity(id, reviewerId, parsed.data.action, parsed.data.rejectionReason);
+      storage.createAuditLog({ actorUserId: reviewerId, action: `activity_${parsed.data.action}`, entityType: "activity", entityId: id, details: { action: parsed.data.action, reason: parsed.data.rejectionReason } }).catch(() => {});
       res.json(activity);
     } catch (error) {
       res.status(500).json({ message: "Failed to review activity" });
@@ -450,6 +452,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         titleAr: `شهادة إتمام: ${course?.titleAr || ""}`,
         titleEn: `Completion Certificate: ${course?.titleEn || ""}`,
       });
+      storage.createAuditLog({ actorUserId: userId, action: "course_completed", entityType: "course", entityId: req.params.courseId, details: { certificateId: cert.id } }).catch(() => {});
+      storage.createAuditLog({ actorUserId: userId, action: "certificate_issued", entityType: "certificate", entityId: cert.id, details: { courseId: req.params.courseId, type: "course_completion" } }).catch(() => {});
       res.json({ enrollment: completed, certificate: cert });
     } catch (error) {
       res.status(500).json({ message: "Failed to complete course" });
@@ -464,6 +468,61 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  app.get("/api/audit-logs", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const logs = await storage.getAuditLogs(200);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  app.get("/api/reports/hours-by-student", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const data = await storage.getReportHoursByStudent();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch report" });
+    }
+  });
+
+  app.get("/api/reports/students-by-major", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const data = await storage.getReportStudentsByMajor();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch report" });
+    }
+  });
+
+  app.get("/api/reports/completed-courses", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const data = await storage.getReportCompletedCourses();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch report" });
+    }
+  });
+
+  app.get("/api/reports/approved-activities", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const data = await storage.getReportApprovedActivities();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch report" });
     }
   });
 
