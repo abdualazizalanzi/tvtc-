@@ -23,9 +23,14 @@ const upload = multer({
   },
 });
 
+async function isAdmin(userId: string): Promise<boolean> {
+  const profile = await storage.getStudentProfile(userId);
+  return profile?.role === "supervisor";
+}
+
 async function isSupervisor(userId: string): Promise<boolean> {
   const profile = await storage.getStudentProfile(userId);
-  return profile?.role === "supervisor" || profile?.role === "trainer";
+  return profile?.role === "supervisor";
 }
 
 async function isTrainer(userId: string): Promise<boolean> {
@@ -64,16 +69,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         trainingId: z.string().optional(),
         phone: z.string().optional(),
         major: z.string().optional(),
-        role: z.enum(["student", "trainer", "supervisor"]).optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
-      const existingProfile = await storage.getStudentProfile(userId);
-      const profileData: any = { userId, ...parsed.data };
-      if (existingProfile?.role) {
-        profileData.role = existingProfile.role;
-      }
-      const profile = await storage.upsertStudentProfile(profileData);
+      const profile = await storage.upsertStudentProfile({ userId, ...parsed.data });
       storage.createAuditLog({ actorUserId: userId, action: "profile_update", entityType: "student_profile", entityId: profile.id, details: parsed.data }).catch(() => {});
       res.json(profile);
     } catch (error) {
@@ -529,6 +528,88 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(data);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch report" });
+    }
+  });
+
+  app.get("/api/admin/users", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const users = await storage.getAllUsersWithProfiles();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/role", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const schema = z.object({
+        role: z.enum(["student", "trainer", "supervisor"]),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+      const profile = await storage.updateUserRole(req.params.id, parsed.data.role);
+      storage.createAuditLog({
+        actorUserId: userId,
+        action: "role_change",
+        entityType: "student_profile",
+        entityId: profile.id,
+        details: { targetUserId: req.params.id, newRole: parsed.data.role },
+      }).catch(() => {});
+      res.json(profile);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update role" });
+    }
+  });
+
+  app.post("/api/admin/users", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!(await isSupervisor(userId))) return res.status(403).json({ message: "Forbidden" });
+      const schema = z.object({
+        email: z.string().email(),
+        password: z.string().min(6),
+        firstName: z.string().min(1),
+        lastName: z.string().min(1),
+        role: z.enum(["student", "trainer", "supervisor"]),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+
+      const { authStorage } = await import("./replit_integrations/auth/storage");
+      const bcrypt = await import("bcryptjs");
+      const existing = await authStorage.getUserByEmail(parsed.data.email);
+      if (existing) return res.status(409).json({ message: "البريد مسجل بالفعل / Email already registered" });
+
+      const hashedPassword = await bcrypt.hash(parsed.data.password, 10);
+      const newUser = await authStorage.upsertUser({
+        email: parsed.data.email,
+        password: hashedPassword,
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+      });
+
+      await storage.upsertStudentProfile({
+        userId: newUser.id,
+        role: parsed.data.role,
+      });
+
+      storage.createAuditLog({
+        actorUserId: userId,
+        action: "admin_create_user",
+        entityType: "user",
+        entityId: newUser.id,
+        details: { email: parsed.data.email, role: parsed.data.role },
+      }).catch(() => {});
+
+      const { password, ...userWithoutPassword } = newUser;
+      res.status(201).json({ ...userWithoutPassword, role: parsed.data.role });
+    } catch (error) {
+      console.error("Admin create user error:", error);
+      res.status(500).json({ message: "Failed to create user" });
     }
   });
 

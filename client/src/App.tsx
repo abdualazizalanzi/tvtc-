@@ -24,6 +24,7 @@ import SupervisorDashboardPage from "@/pages/supervisor-dashboard";
 import ProfilePage from "@/pages/profile";
 import CertificatesPage from "@/pages/certificates";
 import CompleteProfilePage from "@/pages/complete-profile";
+import AdminUsersPage from "@/pages/admin-users";
 import NotFound from "@/pages/not-found";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { StudentProfile } from "@shared/schema";
@@ -59,6 +60,7 @@ function AuthenticatedLayout() {
               <Route path="/review" component={ReviewPage} />
               <Route path="/trainer" component={TrainerDashboardPage} />
               <Route path="/supervisor" component={SupervisorDashboardPage} />
+              <Route path="/admin/users" component={AdminUsersPage} />
               <Route path="/profile" component={ProfilePage} />
               <Route path="/certificates" component={CertificatesPage} />
               <Route path="/ai-assistant" component={AIAssistantPage} />

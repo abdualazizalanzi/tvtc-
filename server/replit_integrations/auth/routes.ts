@@ -13,7 +13,6 @@ export function registerAuthRoutes(app: Express): void {
         password: z.string().min(6),
         firstName: z.string().min(1),
         lastName: z.string().min(1),
-        role: z.enum(["student", "trainer", "supervisor"]).default("student"),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) {
@@ -35,7 +34,7 @@ export function registerAuthRoutes(app: Express): void {
 
       await storage.upsertStudentProfile({
         userId: user.id,
-        role: parsed.data.role as "student" | "trainer" | "supervisor",
+        role: "student",
       });
 
       req.session.regenerate((err: any) => {

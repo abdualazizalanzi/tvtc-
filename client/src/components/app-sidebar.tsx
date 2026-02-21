@@ -5,7 +5,7 @@ import { useLocation, Link } from "wouter";
 import {
   LayoutDashboard, PlusCircle, ListChecks, BookOpen, ClipboardCheck,
   LogOut, GraduationCap, User, Award, FileText, Bot, BarChart3,
-  Settings,
+  Settings, Users,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -46,6 +46,7 @@ export function AppSidebar() {
   const supervisorItems = [
     { title: t("review.title"), url: "/review", icon: ClipboardCheck },
     { title: t("nav.supervisorDashboard"), url: "/supervisor", icon: BarChart3 },
+    { title: t("admin.users"), url: "/admin/users", icon: Users },
   ];
 
   const initials = user

@@ -88,6 +88,8 @@ export interface IStorage {
 
   getStudentProfile(userId: string): Promise<StudentProfile | undefined>;
   upsertStudentProfile(profile: InsertStudentProfile): Promise<StudentProfile>;
+  getAllUsersWithProfiles(): Promise<{ id: string; email: string | null; firstName: string | null; lastName: string | null; createdAt: Date | null; role: string | null; studentId: string | null; major: string | null; phone: string | null }[]>;
+  updateUserRole(userId: string, role: "student" | "trainer" | "supervisor"): Promise<StudentProfile>;
 
   getStats(): Promise<{ totalStudents: number; totalActivities: number; totalApproved: number; totalCourses: number }>;
 
@@ -329,6 +331,43 @@ class DatabaseStorage implements IStorage {
       .onConflictDoUpdate({ target: studentProfiles.userId, set: profile })
       .returning();
     return result;
+  }
+
+  async getAllUsersWithProfiles() {
+    const results = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        createdAt: users.createdAt,
+        role: studentProfiles.role,
+        studentId: studentProfiles.studentId,
+        major: studentProfiles.major,
+        phone: studentProfiles.phone,
+      })
+      .from(users)
+      .leftJoin(studentProfiles, eq(users.id, studentProfiles.userId))
+      .orderBy(desc(users.createdAt));
+    return results;
+  }
+
+  async updateUserRole(userId: string, role: "student" | "trainer" | "supervisor"): Promise<StudentProfile> {
+    const existing = await this.getStudentProfile(userId);
+    if (existing) {
+      const [result] = await db
+        .update(studentProfiles)
+        .set({ role })
+        .where(eq(studentProfiles.userId, userId))
+        .returning();
+      return result;
+    } else {
+      const [result] = await db
+        .insert(studentProfiles)
+        .values({ userId, role })
+        .returning();
+      return result;
+    }
   }
 
   async getStats(): Promise<{ totalStudents: number; totalActivities: number; totalApproved: number; totalCourses: number }> {

@@ -88,6 +88,11 @@ A bilingual (Arabic/English) web platform for documenting non-academic skills an
 - `GET /api/certificates` - User's certificates
 - `GET /api/certificates/verify/:code` - Verify certificate
 
+### Admin (Supervisor Only)
+- `GET /api/admin/users` - List all users with profiles
+- `POST /api/admin/users` - Create user with role (email, password, firstName, lastName, role)
+- `PATCH /api/admin/users/:id/role` - Change user role
+
 ### Stats
 - `GET /api/stats` - Dashboard statistics (supervisor)
 
@@ -105,3 +110,5 @@ A bilingual (Arabic/English) web platform for documenting non-academic skills an
 - 2026-02-21: Added supervisor analytics dashboard with statistics
 - 2026-02-21: Added AI assistant with activity/course suggestions and CV generation
 - 2026-02-21: Added profile page, certificates page, expanded sidebar navigation
+- 2026-02-21: Replaced Replit Auth with custom email/password authentication (bcryptjs + express-session)
+- 2026-02-21: Added admin user management - only supervisors can create accounts and assign roles (student/trainer/supervisor)

@@ -10,9 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { GraduationCap, LogIn, UserPlus, Loader2 } from "lucide-react";
 
 export default function AuthPage() {
@@ -27,7 +24,6 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState("student");
 
   const loginMutation = useMutation({
     mutationFn: async () => {
@@ -51,7 +47,7 @@ export default function AuthPage() {
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/auth/register", { email, password, firstName, lastName, role });
+      const res = await apiRequest("POST", "/api/auth/register", { email, password, firstName, lastName });
       return res.json();
     },
     onSuccess: () => {
@@ -141,22 +137,6 @@ export default function AuthPage() {
                         data-testid="input-last-name"
                       />
                     </div>
-                  </div>
-                )}
-
-                {!isLogin && (
-                  <div className="space-y-1.5">
-                    <Label>{t("auth.role")}</Label>
-                    <Select value={role} onValueChange={setRole}>
-                      <SelectTrigger data-testid="select-role">
-                        <SelectValue placeholder={t("auth.role.desc")} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="student">{t("auth.role.student")}</SelectItem>
-                        <SelectItem value="trainer">{t("auth.role.trainer")}</SelectItem>
-                        <SelectItem value="supervisor">{t("auth.role.supervisor")}</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                 )}
 

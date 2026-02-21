@@ -1,10 +1,9 @@
-import { useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -25,7 +24,6 @@ const profileSchema = z.object({
   trainingId: z.string().optional(),
   phone: z.string().optional(),
   major: z.string().min(1, { message: "مطلوب" }),
-  role: z.enum(["student", "trainer", "supervisor"]).optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -50,11 +48,6 @@ export default function CompleteProfilePage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  const { data: existingProfile } = useQuery<any>({
-    queryKey: ["/api/profile"],
-    enabled: !!user,
-  });
-
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -62,34 +55,20 @@ export default function CompleteProfilePage() {
       trainingId: "",
       phone: "",
       major: "",
-      role: existingProfile?.role || "student",
     },
   });
-
-  useEffect(() => {
-    if (existingProfile?.role) {
-      form.setValue("role", existingProfile.role);
-    }
-  }, [existingProfile, form]);
 
   const mutation = useMutation({
     mutationFn: async (data: ProfileFormData) => {
       await apiRequest("POST", "/api/profile", data);
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast({
         title: t("common.success"),
         description: lang === "ar" ? "تم حفظ بياناتك بنجاح" : "Your profile has been saved successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/profile"] });
-      const role = variables.role;
-      if (role === "trainer") {
-        setLocation("/trainer");
-      } else if (role === "supervisor") {
-        setLocation("/supervisor");
-      } else {
-        setLocation("/dashboard");
-      }
+      setLocation("/dashboard");
     },
     onError: () => {
       toast({ title: t("common.error"), variant: "destructive" });
@@ -209,29 +188,6 @@ export default function CompleteProfilePage() {
                               {lang === "ar" ? m.ar : m.en}
                             </SelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("auth.role")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || "student"}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-role">
-                            <SelectValue placeholder={t("auth.role.desc")} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="student">{t("auth.role.student")}</SelectItem>
-                          <SelectItem value="trainer">{t("auth.role.trainer")}</SelectItem>
-                          <SelectItem value="supervisor">{t("auth.role.supervisor")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
