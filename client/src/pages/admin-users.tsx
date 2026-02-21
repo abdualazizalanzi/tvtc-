@@ -17,7 +17,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Users, UserPlus, Shield, GraduationCap, BookOpen, Loader2 } from "lucide-react";
+import { Users, UserPlus, Shield, GraduationCap, BookOpen, Loader2, Award } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -310,19 +310,49 @@ export default function AdminUsersPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={u.role || "student"}
-                          onValueChange={(role) => roleMutation.mutate({ userId: u.id, role })}
-                        >
-                          <SelectTrigger className="w-32 h-8 text-xs" data-testid={`select-role-${u.id}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="student">{t("auth.role.student")}</SelectItem>
-                            <SelectItem value="trainer">{t("auth.role.trainer")}</SelectItem>
-                            <SelectItem value="supervisor">{t("auth.role.supervisor")}</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              const courseId = prompt(lang === "ar" ? "أدخل رقم الدورة (ID):" : "Enter Course ID:");
+                              if (courseId) {
+                                apiRequest("POST", "/api/admin/issue-certificate", { userId: u.id, courseId })
+                                  .then(() => {
+                                    toast({
+                                      title: lang === "ar" ? "تم بنجاح" : "Success",
+                                      description: lang === "ar" ? "تم إصدار الشهادة بنجاح" : "Certificate issued successfully",
+                                    });
+                                    queryClient.invalidateQueries({ queryKey: ["/api/certificates"] });
+                                  })
+                                  .catch((err) => {
+                                    toast({
+                                      title: lang === "ar" ? "خطأ" : "Error",
+                                      description: err.message,
+                                      variant: "destructive",
+                                    });
+                                  });
+                              }
+                            }}
+                          >
+                            <Award className="h-3.5 w-3.5 me-1" />
+                            {lang === "ar" ? "إصدار شهادة" : "Issue Cert"}
+                          </Button>
+                          <Select
+                            value={u.role || "student"}
+                            onValueChange={(role) => roleMutation.mutate({ userId: u.id, role })}
+                          >
+                            <SelectTrigger className="w-32 h-8 text-xs" data-testid={`select-role-${u.id}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="student">{t("auth.role.student")}</SelectItem>
+                              <SelectItem value="trainer">{t("auth.role.trainer")}</SelectItem>
+                              <SelectItem value="supervisor">{t("auth.role.supervisor")}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

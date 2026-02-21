@@ -41,6 +41,11 @@ async function isTrainer(userId: string): Promise<boolean> {
   return profile?.role === "trainer" || profile?.role === "supervisor";
 }
 
+async function canStudentAccess(userId: string): Promise<boolean> {
+  const profile = await storage.getStudentProfile(userId);
+  return profile?.role === "student" || profile?.role === "supervisor";
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
@@ -108,6 +113,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/activities", isAuthenticated, upload.single("certificate"), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      if (!(await canStudentAccess(userId))) return res.status(403).json({ message: "Forbidden" });
       const bodySchema = z.object({
         type: z.enum(["volunteer_work", "student_employment", "participation", "self_development", "awards", "student_activity", "professional_activity", "leadership_skills"]),
         nameAr: z.string().min(1),
@@ -392,6 +398,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/enrollments", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      if (!(await canStudentAccess(userId))) return res.status(403).json({ message: "Forbidden" });
       const schema = z.object({ courseId: z.string().min(1) });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
@@ -407,6 +414,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post("/api/lessons/:lessonId/complete", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      if (!(await canStudentAccess(userId))) return res.status(403).json({ message: "Forbidden" });
       const progress = await storage.markLessonComplete(userId, req.params.lessonId);
       res.json(progress);
     } catch (error) {
@@ -531,6 +539,42 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       res.json(data);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch report" });
+    }
+  });
+
+  app.post("/api/admin/issue-certificate", isAuthenticated, async (req: any, res) => {
+    try {
+      const actorId = req.user.claims.sub;
+      if (!(await isSupervisor(actorId))) return res.status(403).json({ message: "Forbidden" });
+
+      const schema = z.object({
+        userId: z.string().min(1),
+        courseId: z.string().min(1),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+
+      const course = await storage.getCourseById(parsed.data.courseId);
+      const cert = await storage.createCertificate({
+        userId: parsed.data.userId,
+        courseId: parsed.data.courseId,
+        type: "course_completion",
+        titleAr: `شهادة إتمام (إصدار إداري): ${course?.titleAr || ""}`,
+        titleEn: `Completion Certificate (Admin Issued): ${course?.titleEn || ""}`,
+      });
+
+      storage.createAuditLog({
+        actorUserId: actorId,
+        action: "admin_certificate_issued",
+        entityType: "certificate",
+        entityId: cert.id,
+        details: { targetUserId: parsed.data.userId, courseId: parsed.data.courseId }
+      }).catch(() => {});
+
+      res.json(cert);
+    } catch (error) {
+      console.error("Admin certificate issuance error:", error);
+      res.status(500).json({ message: "Failed to issue certificate" });
     }
   });
 
