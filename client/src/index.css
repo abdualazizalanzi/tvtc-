@@ -286,3 +286,24 @@
     inset: -1px;
   }
 }
+
+@media print {
+  header, [data-sidebar], [data-testid="button-sidebar-toggle"],
+  .no-print, button[data-testid="button-download-pdf"] {
+    display: none !important;
+  }
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .print-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
