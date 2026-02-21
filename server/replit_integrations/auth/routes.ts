@@ -38,8 +38,10 @@ export function registerAuthRoutes(app: Express): void {
       });
 
       req.session.userId = user.id;
-      const { password, ...userWithoutPassword } = user;
-      res.status(201).json(userWithoutPassword);
+      req.session.save(() => {
+        const { password, ...userWithoutPassword } = user;
+        res.status(201).json(userWithoutPassword);
+      });
     } catch (error) {
       console.error("Register error:", error);
       res.status(500).json({ message: "فشل التسجيل / Registration failed" });
@@ -68,8 +70,10 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       req.session.userId = user.id;
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      req.session.save(() => {
+        const { password, ...userWithoutPassword } = user;
+        res.json(userWithoutPassword);
+      });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "فشل تسجيل الدخول / Login failed" });
@@ -94,7 +98,7 @@ export function registerAuthRoutes(app: Express): void {
       if (err) {
         return res.status(500).json({ message: "فشل تسجيل الخروج / Logout failed" });
       }
-      res.clearCookie("connect.sid");
+      res.clearCookie("sejali.sid");
       res.json({ message: "تم تسجيل الخروج / Logged out" });
     });
   });

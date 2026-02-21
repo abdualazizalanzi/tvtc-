@@ -17,9 +17,11 @@ export function getSession() {
     resave: true,
     saveUninitialized: true,
     proxy: true,
+    name: "sejali.sid",
     cookie: {
+      path: "/",
       httpOnly: true,
-      secure: false,
+      secure: false, 
       sameSite: "lax",
       maxAge: sessionTtl,
     },
