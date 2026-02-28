@@ -50,6 +50,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  // Health check endpoint
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   app.use("/uploads", (req, res, next) => {
     const filePath = path.join(uploadDir, path.basename(req.path));
     if (fs.existsSync(filePath)) {
@@ -77,6 +82,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         trainingId: z.string().optional(),
         phone: z.string().optional(),
         major: z.string().optional(),
+        bio: z.string().optional(),
+        skills: z.array(z.string()).optional(),
+        languages: z.array(z.object({ name: z.string(), level: z.string() })).optional(),
+        linkedIn: z.string().optional(),
+        github: z.string().optional(),
+        interests: z.array(z.string()).optional(),
+        careerGoals: z.string().optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
@@ -86,6 +98,132 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (error) {
       console.error("Profile update error:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Career Guidance API
+  app.post("/api/career/analyze", isAuthenticated, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        answers: z.array(z.object({ questionId: z.number(), answer: z.string() })),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
+
+      const { answers } = parsed.data;
+      
+      // Simple analysis based on answers
+      const scores: Record<string, number> = {
+        it: 0,
+        engineering: 0,
+        business: 0,
+        health: 0,
+        arts: 0,
+        science: 0,
+        media: 0,
+        education: 0,
+      };
+
+      const answerMappings: Record<string, string[]> = {
+        it: ["it", "coding", "technical", "computers"],
+        engineering: ["engineering", "design", "math", "tools"],
+        business: ["business", "leadership", "efficiency", "numbers"],
+        health: ["health", "helping", "scientific", "service"],
+        arts: ["arts", "creative", "images", "creative_space"],
+        science: ["science", "analysis", "research", "lab"],
+        media: ["media", "words", "communication", "customer_facing"],
+        education: ["education", "people", "helping", "teaching"],
+      };
+
+      answers.forEach((answer) => {
+        Object.entries(answerMappings).forEach(([major, values]) => {
+          if (values.includes(answer.answer)) {
+            scores[major] += 2;
+          }
+        });
+      });
+
+      // Find highest scoring major
+      let maxScore = 0;
+      let suggestedMajor = "it";
+      Object.entries(scores).forEach(([major, score]) => {
+        if (score > maxScore) {
+          maxScore = score;
+          suggestedMajor = major;
+        }
+      });
+
+      const results: Record<string, any> = {
+        it: {
+          suggestedMajor: "Information Technology",
+          majorAr: "تكنولوجيا المعلومات",
+          matchingSkills: ["Programming", "Problem Solving", "Logical Thinking", "Technical Skills"],
+          careerPaths: ["Software Developer", "Web Developer", "Mobile App Developer", "System Administrator"],
+          description: "Information Technology is ideal for those who love technology, programming, and solving technical problems.",
+          descriptionAr: "تكنولوجيا المعلومات مثالي لمن يحب التقنية والبرمجة وحل المشكلات التقنية.",
+        },
+        engineering: {
+          suggestedMajor: "Engineering",
+          majorAr: "الهندسة",
+          matchingSkills: ["Problem Solving", "Mathematics", "Technical Skills", "Analytical Thinking"],
+          careerPaths: ["Civil Engineer", "Mechanical Engineer", "Electrical Engineer", "Project Manager"],
+          description: "Engineering is perfect for those who enjoy applying science and mathematics to solve real-world problems.",
+          descriptionAr: "الهندسة مثالية لمن يستمتع بتطبيق العلوم والرياضيات لحل مشاكل العالم الحقيقي.",
+        },
+        business: {
+          suggestedMajor: "Business Administration",
+          majorAr: "إدارة الأعمال",
+          matchingSkills: ["Communication", "Leadership", "Organization", "Analytical Thinking"],
+          careerPaths: ["Business Manager", "Marketing Specialist", "Financial Analyst", "HR Manager"],
+          description: "Business Administration suits those who enjoy leadership and working with numbers.",
+          descriptionAr: "إدارة الأعمال مناسبة لمن يستمتع بالقيادة والتواصل والعمل مع الأرقام.",
+        },
+        health: {
+          suggestedMajor: "Health Sciences",
+          majorAr: "العلوم الصحية",
+          matchingSkills: ["Helping Others", "Scientific Knowledge", "Attention to Detail", "Compassion"],
+          careerPaths: ["Physician", "Nurse", "Pharmacist", "Physical Therapist"],
+          description: "Health Sciences is ideal for those passionate about helping others.",
+          descriptionAr: "العلوم الصحية مثالية لمن شغوف بمساعدة الآخرين.",
+        },
+        arts: {
+          suggestedMajor: "Arts & Design",
+          majorAr: "الفنون والتصميم",
+          matchingSkills: ["Creativity", "Visual Thinking", "Artistic Skills", "Imagination"],
+          careerPaths: ["Graphic Designer", "UI/UX Designer", "Interior Designer", "Multimedia Artist"],
+          description: "Arts & Design is perfect for creative individuals.",
+          descriptionAr: "الفنون والتصميم مثالي للأفراد المبدعين.",
+        },
+        science: {
+          suggestedMajor: "Computer Science",
+          majorAr: "علوم الحاسب",
+          matchingSkills: ["Logical Thinking", "Problem Solving", "Research", "Mathematics"],
+          careerPaths: ["Software Engineer", "Data Scientist", "AI Researcher", "Machine Learning Engineer"],
+          description: "Computer Science suits those who love algorithms and data.",
+          descriptionAr: "علوم الحاسب مناسبة لمن يحب الخوارزميات والبيانات.",
+        },
+        media: {
+          suggestedMajor: "Media & Communication",
+          majorAr: "الإعلام والتواصل",
+          matchingSkills: ["Communication", "Creativity", "Writing", "Social Skills"],
+          careerPaths: ["Content Creator", "Journalist", "Social Media Manager", "Marketing Coordinator"],
+          description: "Media & Communication is ideal for those who enjoy storytelling.",
+          descriptionAr: "الإعلام والتواصل مثالي لمن يستمتع بسرد القصص.",
+        },
+        education: {
+          suggestedMajor: "Education & Training",
+          majorAr: "التعليم والتدريب",
+          matchingSkills: ["Communication", "Patience", "Helping Others", "Presentation Skills"],
+          careerPaths: ["Teacher", "Trainer", "Educational Administrator", "Curriculum Developer"],
+          description: "Education is perfect for those who love sharing knowledge.",
+          descriptionAr: "التعليم مثالي لمن يحب مشاركة المعرفة.",
+        },
+      };
+
+      res.json(results[suggestedMajor] || results.it);
+    } catch (error) {
+      console.error("Career analysis error:", error);
+      res.status(500).json({ message: "Failed to analyze career" });
     }
   });
 
@@ -452,6 +590,31 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.get("/api/certificates/:id/user", isAuthenticated, async (req: any, res) => {
+    try {
+      const cert = await storage.getCertificateById(req.params.id);
+      if (!cert) return res.status(404).json({ message: "Certificate not found" });
+      
+      // Allow access if user owns the certificate or is a supervisor/trainer
+      const userId = req.user.claims.sub;
+      const profile = await storage.getStudentProfile(userId);
+      const isAuthorized = cert.userId === userId || profile?.role === "supervisor" || profile?.role === "trainer";
+      
+      if (!isAuthorized) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      const user = await authStorage.getUser(cert.userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      
+      // Return user info without password
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch certificate user" });
+    }
+  });
+
   app.post("/api/courses/:courseId/complete", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -715,12 +878,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  const openai = new OpenAI({
-    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  });
+  const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+    ? new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      })
+    : null;
 
   app.post("/api/ai/chat", isAuthenticated, async (req: any, res) => {
+    if (!openai) {
+      return res.status(503).json({ message: "AI service is not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY environment variable." });
+    }
     try {
       const userId = req.user.claims.sub;
       const aiSchema = z.object({

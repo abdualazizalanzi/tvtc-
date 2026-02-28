@@ -5,7 +5,7 @@ import { useLocation, Link } from "wouter";
 import {
   LayoutDashboard, PlusCircle, ListChecks, BookOpen, ClipboardCheck,
   LogOut, GraduationCap, User, Award, FileText, Bot, BarChart3,
-  Settings, Users,
+  Settings, Users, Compass, FileTextIcon,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
@@ -36,6 +36,8 @@ export function AppSidebar() {
     { title: t("nav.courses"), url: "/courses", icon: BookOpen },
     { title: t("nav.certificates"), url: "/certificates", icon: Award },
     { title: t("nav.skillRecord"), url: "/skill-record", icon: FileText },
+    { title: t("career.title"), url: "/career-guidance", icon: Compass },
+    { title: t("cv.title"), url: "/cv-generator", icon: FileTextIcon },
     { title: t("nav.aiAssistant"), url: "/ai-assistant", icon: Bot },
   ];
 

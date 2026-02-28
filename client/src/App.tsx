@@ -27,6 +27,8 @@ import VerifyCertificatePage from "@/pages/verify-certificate";
 import CompleteProfilePage from "@/pages/complete-profile";
 import AdminUsersPage from "@/pages/admin-users";
 import NotFound from "@/pages/not-found";
+import CareerGuidancePage from "@/pages/career-guidance";
+import CVGeneratorPage from "@/pages/cv-generator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { StudentProfile } from "@shared/schema";
 
@@ -67,6 +69,8 @@ function AuthenticatedLayout() {
               <Route path="/verify/:code" component={VerifyCertificatePage} />
               <Route path="/ai-assistant" component={AIAssistantPage} />
               <Route path="/skill-record" component={SkillRecordPage} />
+              <Route path="/career-guidance" component={CareerGuidancePage} />
+              <Route path="/cv-generator" component={CVGeneratorPage} />
               <Route component={NotFound} />
             </Switch>
           </main>

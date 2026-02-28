@@ -36,6 +36,14 @@ export const studentProfiles = pgTable("student_profiles", {
   phone: varchar("phone"),
   major: varchar("major"),
   role: userRoleEnum("role").notNull().default("student"),
+  // New CV fields
+  bio: text("bio"),
+  skills: jsonb("skills").$type<string[]>().default([]),
+  languages: jsonb("languages").$type<{ name: string; level: string }[]>().default([]),
+  linkedIn: varchar("linkedin"),
+  github: varchar("github"),
+  interests: jsonb("interests").$type<string[]>().default([]),
+  careerGoals: text("career_goals"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

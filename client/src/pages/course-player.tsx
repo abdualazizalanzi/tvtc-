@@ -568,7 +568,7 @@ function QuizCard({
             {questions
               .sort((a, b) => a.orderIndex - b.orderIndex)
               .map((question, qIndex) => {
-                const options = (question.options as string[]) || [];
+                const options = (question.options as Array<{ textAr: string; textEn: string }>) || [];
                 return (
                   <div key={question.id} className="space-y-3" data-testid={`question-${question.id}`}>
                     <p className="font-medium text-sm">
@@ -591,7 +591,7 @@ function QuizCard({
                             data-testid={`radio-${question.id}-${oIndex}`}
                           />
                           <Label htmlFor={`q-${question.id}-${oIndex}`} className="text-sm cursor-pointer">
-                            {option}
+                            {lang === "ar" ? option.textAr : option.textEn || option.textAr}
                           </Label>
                         </div>
                       ))}

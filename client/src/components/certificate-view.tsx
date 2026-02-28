@@ -1,10 +1,11 @@
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Award, Download, Share2, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Award, Download, CheckCircle2, ShieldCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Certificate, Course, User } from "@shared/schema";
+import type { Certificate, Course } from "@shared/schema";
 
 interface CertificateViewProps {
   certificateId: string;
@@ -12,6 +13,7 @@ interface CertificateViewProps {
 
 export default function CertificateView({ certificateId }: CertificateViewProps) {
   const { t, lang } = useI18n();
+  const { user } = useAuth();
 
   const { data: certificate, isLoading: certLoading } = useQuery<Certificate>({
     queryKey: ["/api/certificates", certificateId],
@@ -22,22 +24,30 @@ export default function CertificateView({ certificateId }: CertificateViewProps)
     }
   });
 
-  const { data: user, isLoading: userLoading } = useQuery<User>({
-    queryKey: ["/api/admin/users", certificate?.userId],
-    queryFn: async () => {
-      const res = await fetch(`/api/admin/users`);
-      const users = await res.json();
-      return users.find((u: User) => u.id === certificate?.userId);
-    },
-    enabled: !!certificate?.userId,
-  });
-
   const { data: course, isLoading: courseLoading } = useQuery<Course>({
     queryKey: ["/api/courses", certificate?.courseId],
     enabled: !!certificate?.courseId,
   });
 
-  if (certLoading || courseLoading || userLoading) {
+  // Try to get user from auth or from certificate userId
+  const { data: certificateUser, isLoading: userLoading } = useQuery({
+    queryKey: ["/api/certificates", certificateId, "user"],
+    queryFn: async () => {
+      // If user is logged in and matches certificate owner, use that
+      if (user && certificate?.userId === user.id) {
+        return user;
+      }
+      // Otherwise fetch from certificate endpoint if available
+      const res = await fetch(`/api/certificates/${certificateId}/user`);
+      if (res.ok) {
+        return res.json();
+      }
+      return null;
+    },
+    enabled: !!certificate,
+  });
+
+  if (certLoading || courseLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <Skeleton className="w-full max-w-3xl aspect-[1.414/1] rounded-xl" />
@@ -47,7 +57,9 @@ export default function CertificateView({ certificateId }: CertificateViewProps)
 
   if (!certificate) return <div>Certificate not found</div>;
 
-  const studentName = user ? `${user.firstName} ${user.lastName}` : (lang === "ar" ? "الطالب" : "Student");
+  const studentName = certificateUser 
+    ? `${certificateUser.firstName} ${certificateUser.lastName}`
+    : (lang === "ar" ? "الطالب" : "Student");
 
   return (
     <div className="space-y-8 p-4 max-w-5xl mx-auto">
