@@ -36,7 +36,7 @@ import {
   type LessonProgress,
   type InsertAuditLog,
   type AuditLog,
-} from "@shared/schema";
+} from "@shared/schema-sqlite";
 import { db } from "./db";
 import { eq, desc, and, sql, count, sum } from "drizzle-orm";
 

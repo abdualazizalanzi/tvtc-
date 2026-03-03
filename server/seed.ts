@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { courses } from "@shared/schema";
+import { courses } from "@shared/schema-sqlite";
 import { sql } from "drizzle-orm";
 
 export async function seedDatabase() {

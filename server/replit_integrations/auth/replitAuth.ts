@@ -1,21 +1,18 @@
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
-import connectPg from "connect-pg-simple";
+import MemoryStore from "memorystore";
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000;
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
+  const MemorySessionStore = MemoryStore(session);
+  const sessionStore = new MemorySessionStore({
+    checkPeriod: sessionTtl,
   });
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || "development-secret-change-in-production",
     store: sessionStore,
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     proxy: true,
     name: "sejali.sid",
     cookie: {
@@ -40,3 +37,5 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
   req.user = { claims: { sub: req.session.userId } };
   return next();
 };
+
+

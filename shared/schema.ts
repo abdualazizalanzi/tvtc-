@@ -44,6 +44,7 @@ export const studentProfiles = pgTable("student_profiles", {
   github: varchar("github"),
   interests: jsonb("interests").$type<string[]>().default([]),
   careerGoals: text("career_goals"),
+  profileImageUrl: varchar("profile_image_url"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -8,7 +8,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import OpenAI from "openai";
-import { ACTIVITY_MIN_HOURS } from "@shared/schema";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ACTIVITY_MIN_HOURS } from "@shared/schema-sqlite";
 
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -89,15 +90,80 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         github: z.string().optional(),
         interests: z.array(z.string()).optional(),
         careerGoals: z.string().optional(),
+        profileImageUrl: z.string().optional(),
       });
       const parsed = schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
-      const profile = await storage.upsertStudentProfile({ userId, ...parsed.data });
-      storage.createAuditLog({ actorUserId: userId, action: "profile_update", entityType: "student_profile", entityId: profile.id, details: parsed.data }).catch(() => {});
+      
+      // Convert arrays to JSON strings for SQLite storage
+      const profileData: any = { userId };
+      if (parsed.data.skills) profileData.skills = JSON.stringify(parsed.data.skills);
+      if (parsed.data.languages) profileData.languages = JSON.stringify(parsed.data.languages);
+      if (parsed.data.interests) profileData.interests = JSON.stringify(parsed.data.interests);
+      if (parsed.data.studentId) profileData.studentId = parsed.data.studentId;
+      if (parsed.data.trainingId) profileData.trainingId = parsed.data.trainingId;
+      if (parsed.data.phone) profileData.phone = parsed.data.phone;
+      if (parsed.data.major) profileData.major = parsed.data.major;
+      if (parsed.data.bio) profileData.bio = parsed.data.bio;
+      if (parsed.data.linkedIn) profileData.linkedIn = parsed.data.linkedIn;
+      if (parsed.data.github) profileData.github = parsed.data.github;
+      if (parsed.data.careerGoals) profileData.careerGoals = parsed.data.careerGoals;
+      if (parsed.data.profileImageUrl) profileData.profileImageUrl = parsed.data.profileImageUrl;
+      
+      const profile = await storage.upsertStudentProfile(profileData);
+      storage.createAuditLog({ actorUserId: userId, action: "profile_update", entityType: "student_profile", entityId: profile.id, details: JSON.stringify(parsed.data) }).catch(() => {});
       res.json(profile);
     } catch (error) {
       console.error("Profile update error:", error);
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // Profile image upload
+  const profileImageUpload = multer({
+    storage: multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, uploadDir),
+      filename: (_req, file, cb) => cb(null, `profile-${Date.now()}-${file.originalname}`),
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const allowed = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, allowed.includes(ext));
+    },
+  });
+
+  app.post("/api/upload/profile-image", isAuthenticated, profileImageUpload.single("file"), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      const imageUrl = `/uploads/${req.file.filename}`;
+      
+      // Update user profile with image URL
+      const profile = await storage.upsertStudentProfile({ 
+        userId, 
+        profileImageUrl: imageUrl 
+      });
+      
+      // Also update auth user if needed
+      const { authStorage } = await import("./replit_integrations/auth/storage");
+      await authStorage.upsertUser({ id: userId, profileImageUrl: imageUrl });
+      
+      storage.createAuditLog({ 
+        actorUserId: userId, 
+        action: "profile_image_update", 
+        entityType: "student_profile", 
+        entityId: profile.id, 
+        details: JSON.stringify({ imageUrl }) 
+      }).catch(() => {});
+      
+      res.json({ url: imageUrl, profile });
+    } catch (error) {
+      console.error("Profile image upload error:", error);
+      res.status(500).json({ message: "Failed to upload profile image" });
     }
   });
 
@@ -290,7 +356,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const parsed = reviewSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
       const activity = await storage.reviewActivity(id, reviewerId, parsed.data.action, parsed.data.rejectionReason);
-      storage.createAuditLog({ actorUserId: reviewerId, action: `activity_${parsed.data.action}`, entityType: "activity", entityId: id, details: { action: parsed.data.action, reason: parsed.data.rejectionReason } }).catch(() => {});
+      storage.createAuditLog({ actorUserId: reviewerId, action: `activity_${parsed.data.action}`, entityType: "activity", entityId: id, details: JSON.stringify({ action: parsed.data.action, reason: parsed.data.rejectionReason }) }).catch(() => {});
       res.json(activity);
     } catch (error) {
       res.status(500).json({ message: "Failed to review activity" });
@@ -631,8 +697,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         titleAr: `شهادة إتمام: ${course?.titleAr || ""}`,
         titleEn: `Completion Certificate: ${course?.titleEn || ""}`,
       });
-      storage.createAuditLog({ actorUserId: userId, action: "course_completed", entityType: "course", entityId: req.params.courseId, details: { certificateId: cert.id } }).catch(() => {});
-      storage.createAuditLog({ actorUserId: userId, action: "certificate_issued", entityType: "certificate", entityId: cert.id, details: { courseId: req.params.courseId, type: "course_completion" } }).catch(() => {});
+      storage.createAuditLog({ actorUserId: userId, action: "course_completed", entityType: "course", entityId: req.params.courseId, details: JSON.stringify({ certificateId: cert.id }) }).catch(() => {});
+      storage.createAuditLog({ actorUserId: userId, action: "certificate_issued", entityType: "certificate", entityId: cert.id, details: JSON.stringify({ courseId: req.params.courseId, type: "course_completion" }) }).catch(() => {});
       res.json({ enrollment: completed, certificate: cert });
     } catch (error) {
       res.status(500).json({ message: "Failed to complete course" });
@@ -731,7 +797,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         action: "admin_certificate_issued",
         entityType: "certificate",
         entityId: cert.id,
-        details: { targetUserId: parsed.data.userId, courseId: parsed.data.courseId }
+        details: JSON.stringify({ targetUserId: parsed.data.userId, courseId: parsed.data.courseId })
       }).catch(() => {});
 
       res.json(cert);
@@ -767,7 +833,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         action: "role_change",
         entityType: "student_profile",
         entityId: profile.id,
-        details: { targetUserId: req.params.id, newRole: parsed.data.role },
+        details: JSON.stringify({ targetUserId: req.params.id, newRole: parsed.data.role }),
       }).catch(() => {});
       res.json(profile);
     } catch (error) {
@@ -812,7 +878,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         action: "admin_create_user",
         entityType: "user",
         entityId: newUser.id,
-        details: { email: parsed.data.email, role: parsed.data.role },
+        details: JSON.stringify({ email: parsed.data.email, role: parsed.data.role }),
       }).catch(() => {});
 
       const { password, ...userWithoutPassword } = newUser;
@@ -844,7 +910,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         action: "password_reset",
         entityType: "user",
         entityId: req.params.id,
-        details: { targetEmail: targetUser.email },
+        details: JSON.stringify({ targetEmail: targetUser.email }),
       }).catch(() => {});
 
       res.json({ message: "تم تغيير كلمة المرور بنجاح / Password reset successfully" });
@@ -878,6 +944,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // AI Clients
   const openai = process.env.AI_INTEGRATIONS_OPENAI_API_KEY
     ? new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -885,9 +952,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       })
     : null;
 
+  // Google Gemini AI Client
+  const googleGenAI = process.env.GOOGLE_AI_API_KEY
+    ? new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY)
+    : null;
+
   app.post("/api/ai/chat", isAuthenticated, async (req: any, res) => {
-    if (!openai) {
-      return res.status(503).json({ message: "AI service is not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY environment variable." });
+    if (!openai && !googleGenAI) {
+      return res.status(503).json({ message: "AI service is not configured. Please set AI_INTEGRATIONS_OPENAI_API_KEY or GOOGLE_AI_API_KEY environment variable." });
     }
     try {
       const userId = req.user.claims.sub;
@@ -1044,27 +1116,52 @@ ${role === "trainer" ? "Help the trainer improve their courses, manage education
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      const stream = await openai.chat.completions.create({
-        model: "gpt-5-nano",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message },
-        ],
-        stream: true,
-        max_completion_tokens: 8192,
-      });
-
-      let fullResponse = "";
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        if (content) {
-          fullResponse += content;
-          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      // Use Google Gemini if OpenAI is not available
+      if (googleGenAI && !openai) {
+        const model = googleGenAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const chat = model.startChat({
+          history: [
+            { role: "user", parts: [{ text: systemPrompt }] }
+          ]
+        });
+        
+        const result = await chat.sendMessageStream(message);
+        let fullResponse = "";
+        
+        for await (const chunk of result.stream) {
+          const content = chunk.text();
+          if (content) {
+            fullResponse += content;
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
         }
-      }
+        
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.end();
+      } else {
+        // Use OpenAI
+        const stream = await openai!.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message },
+          ],
+          stream: true,
 
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-      res.end();
+        });
+
+        let fullResponse = "";
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || "";
+          if (content) {
+            fullResponse += content;
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
+        }
+
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.end();
+      }
     } catch (error) {
       console.error("AI chat error:", error);
       if (res.headersSent) {
